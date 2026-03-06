@@ -10,11 +10,15 @@ require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS настройки для Render
 const io = socketIo(server, {
     cors: {
         origin: "*",
-        methods: ["GET", "POST"]
-    }
+        methods: ["GET", "POST"],
+        credentials: true
+    },
+    transports: ['websocket', 'polling']
 });
 
 // Глобальные переменные
@@ -25,13 +29,33 @@ const activeGames = new Map();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Статические файлы - важно для Render
 app.use(express.static(path.join(__dirname, '../public')));
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/monopoly_one', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
+// Логирование для отладки
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
 });
+
+// MongoDB Connection с обработкой ошибок
+const connectDB = async () => {
+    try {
+        const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/monopoly_one';
+        console.log('Connecting to MongoDB...');
+        await mongoose.connect(mongoURI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        });
+        console.log('MongoDB Connected successfully');
+    } catch (err) {
+        console.error('MongoDB Connection Error:', err.message);
+        // Не выходим, чтобы сервер мог работать без БД в режиме разработки
+    }
+};
+
+connectDB();
 
 // Модели
 const UserSchema = new mongoose.Schema({
@@ -110,10 +134,20 @@ const authMiddleware = (req, res, next) => {
     }
 };
 
+// Health check для Render
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
 // Роуты аутентификации
 app.post('/api/auth/register', async (req, res) => {
     try {
+        console.log('Register attempt:', req.body.email);
         const { nick, email, password } = req.body;
+        
+        if (!nick || !email || !password) {
+            return res.status(400).json({ error: 'All fields required' });
+        }
         
         const existingUser = await User.findOne({ $or: [{ nick }, { email }] });
         if (existingUser) {
@@ -138,17 +172,25 @@ app.post('/api/auth/register', async (req, res) => {
         });
         
         await user.save();
+        console.log('User created:', nick);
         
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret');
         res.json({ token, user: { id: user._id, nick, email, avatar: user.avatar, vip: true, level: 1 } });
     } catch (err) {
+        console.error('Register error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 app.post('/api/auth/login', async (req, res) => {
     try {
+        console.log('Login attempt:', req.body.email);
         const { email, password } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password required' });
+        }
+        
         const user = await User.findOne({ email });
         
         if (!user || !await bcrypt.compare(password, user.password)) {
@@ -172,6 +214,7 @@ app.post('/api/auth/login', async (req, res) => {
             } 
         });
     } catch (err) {
+        console.error('Login error:', err);
         res.status(500).json({ error: err.message });
     }
 });

@@ -20,7 +20,7 @@ const io = socketIo(server, {
 // Глобальные переменные
 let onlineUsers = 0;
 const connectedSockets = new Map();
-const activeGames = new Map(); // Хранение активных игр в памяти
+const activeGames = new Map();
 
 // Middleware
 app.use(cors());
@@ -199,6 +199,26 @@ app.put('/api/user/profile', authMiddleware, async (req, res) => {
     }
 });
 
+// Поиск пользователей
+app.get('/api/users/search', async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) {
+            return res.json({ users: [] });
+        }
+        
+        const users = await User.find({
+            nick: { $regex: q, $options: 'i' }
+        })
+        .select('nick avatar level _id')
+        .limit(10);
+        
+        res.json({ users });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/friends', authMiddleware, async (req, res) => {
     try {
         const user = await User.findById(req.userId).populate('friends', 'nick avatar level wins online lastSeen');
@@ -212,6 +232,10 @@ app.post('/api/friends/add/:userId', authMiddleware, async (req, res) => {
     try {
         const targetUser = await User.findById(req.params.userId);
         if (!targetUser) return res.status(404).json({ error: 'User not found' });
+        
+        if (targetUser._id.toString() === req.userId) {
+            return res.status(400).json({ error: 'Cannot add yourself' });
+        }
         
         if (!targetUser.friendRequests.includes(req.userId)) {
             targetUser.friendRequests.push(req.userId);
@@ -290,7 +314,6 @@ app.post('/api/games/create', authMiddleware, async (req, res) => {
     try {
         const { mode = 'classic', maxPlayers = 6, isPrivate = false, autoStart = true } = req.body;
         
-        // Генерируем уникальный roomId как на скрине: /table/#/XXXXXX
         const roomId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         
         const game = new Game({
@@ -315,7 +338,6 @@ app.post('/api/games/create', authMiddleware, async (req, res) => {
         
         await game.save();
         
-        // Сохраняем в память для быстрого доступа
         activeGames.set(roomId, {
             gameId: game._id,
             host: req.userId,
@@ -337,9 +359,6 @@ app.post('/api/games/join/:roomId', authMiddleware, async (req, res) => {
         if (!game) return res.status(404).json({ error: 'Game not found' });
         if (game.status !== 'waiting') return res.status(400).json({ error: 'Game already started' });
         if (game.players.length >= game.maxPlayers) return res.status(400).json({ error: 'Room full' });
-        if (game.isPrivate && game.host.toString() !== req.userId) {
-            // TODO: Проверка приглашения для приватных комнат
-        }
         
         const existingPlayer = game.players.find(p => p.user.toString() === req.userId);
         if (existingPlayer) {
@@ -359,7 +378,6 @@ app.post('/api/games/join/:roomId', authMiddleware, async (req, res) => {
         
         await game.save();
         
-        // Обновляем в памяти
         const activeGame = activeGames.get(req.params.roomId);
         if (activeGame) {
             activeGame.players.push(req.userId);
@@ -385,13 +403,11 @@ app.get('/api/games/:roomId', async (req, res) => {
     }
 });
 
-// Завершение игры и удаление комнаты
 app.post('/api/games/:roomId/end', authMiddleware, async (req, res) => {
     try {
         const game = await Game.findOne({ roomId: req.params.roomId });
         if (!game) return res.status(404).json({ error: 'Game not found' });
         
-        // Только хост может завершить игру
         if (game.host.toString() !== req.userId) {
             return res.status(403).json({ error: 'Only host can end game' });
         }
@@ -400,10 +416,8 @@ app.post('/api/games/:roomId/end', authMiddleware, async (req, res) => {
         game.endedAt = new Date();
         await game.save();
         
-        // Уведомляем всех игроков
         io.to(req.params.roomId).emit('gameEnded', { roomId: req.params.roomId });
         
-        // Удаляем через 5 минут (даём время на просмотр результатов)
         setTimeout(async () => {
             await Game.deleteOne({ roomId: req.params.roomId });
             activeGames.delete(req.params.roomId);
@@ -416,7 +430,6 @@ app.post('/api/games/:roomId/end', authMiddleware, async (req, res) => {
     }
 });
 
-// Игрок выходит из игры (сдаётся)
 app.post('/api/games/:roomId/leave', authMiddleware, async (req, res) => {
     try {
         const game = await Game.findOne({ roomId: req.params.roomId });
@@ -425,10 +438,8 @@ app.post('/api/games/:roomId/leave', authMiddleware, async (req, res) => {
         const playerIndex = game.players.findIndex(p => p.user.toString() === req.userId);
         if (playerIndex === -1) return res.status(400).json({ error: 'Not in game' });
         
-        // Помечаем как неактивного
         game.players[playerIndex].isActive = false;
         
-        // Если хост выходит - передаём хостство следующему
         if (game.host.toString() === req.userId) {
             const nextHost = game.players.find(p => p.isActive && p.user.toString() !== req.userId);
             if (nextHost) {
@@ -436,7 +447,6 @@ app.post('/api/games/:roomId/leave', authMiddleware, async (req, res) => {
             }
         }
         
-        // Если все вышли или остался 1 игрок - удаляем комнату сразу
         const activePlayers = game.players.filter(p => p.isActive);
         if (activePlayers.length <= 1 && game.status === 'waiting') {
             await Game.deleteOne({ roomId: req.params.roomId });
@@ -454,7 +464,6 @@ app.post('/api/games/:roomId/leave', authMiddleware, async (req, res) => {
     }
 });
 
-// Получение истории сообщений
 app.get('/api/chat/history', async (req, res) => {
     try {
         const messages = await Message.find({ roomId: 'global' })

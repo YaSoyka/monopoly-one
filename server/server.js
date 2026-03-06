@@ -30,28 +30,27 @@ const activeGames = new Map();
 app.use(cors());
 app.use(express.json());
 
-// Статические файлы - важно для Render
-app.use(express.static(path.join(__dirname, '../public')));
+// ВАЖНО: правильный путь к статическим файлам для Render
+// В Render структура: /opt/render/project/src/public/
+const publicPath = path.join(__dirname, '..', 'public');
+console.log('Public path:', publicPath);
+app.use(express.static(publicPath));
 
-// Логирование для отладки
+// Логирование всех запросов
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - Body:`, req.body);
     next();
 });
 
-// MongoDB Connection с обработкой ошибок
+// MongoDB Connection
 const connectDB = async () => {
     try {
         const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/monopoly_one';
         console.log('Connecting to MongoDB...');
-        await mongoose.connect(mongoURI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true
-        });
+        await mongoose.connect(mongoURI);
         console.log('MongoDB Connected successfully');
     } catch (err) {
         console.error('MongoDB Connection Error:', err.message);
-        // Не выходим, чтобы сервер мог работать без БД в режиме разработки
     }
 };
 
@@ -134,23 +133,27 @@ const authMiddleware = (req, res, next) => {
     }
 };
 
-// Health check для Render
+// Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Роуты аутентификации
+// API Роуты
 app.post('/api/auth/register', async (req, res) => {
     try {
-        console.log('Register attempt:', req.body.email);
+        console.log('=== REGISTER ATTEMPT ===');
+        console.log('Body:', req.body);
+        
         const { nick, email, password } = req.body;
         
         if (!nick || !email || !password) {
+            console.log('Missing fields');
             return res.status(400).json({ error: 'All fields required' });
         }
         
         const existingUser = await User.findOne({ $or: [{ nick }, { email }] });
         if (existingUser) {
+            console.log('User already exists');
             return res.status(400).json({ error: 'User already exists' });
         }
         
@@ -172,19 +175,21 @@ app.post('/api/auth/register', async (req, res) => {
         });
         
         await user.save();
-        console.log('User created:', nick);
+        console.log('User created successfully:', nick);
         
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret');
         res.json({ token, user: { id: user._id, nick, email, avatar: user.avatar, vip: true, level: 1 } });
     } catch (err) {
-        console.error('Register error:', err);
+        console.error('REGISTER ERROR:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 app.post('/api/auth/login', async (req, res) => {
     try {
-        console.log('Login attempt:', req.body.email);
+        console.log('=== LOGIN ATTEMPT ===');
+        console.log('Body:', req.body);
+        
         const { email, password } = req.body;
         
         if (!email || !password) {
@@ -214,7 +219,7 @@ app.post('/api/auth/login', async (req, res) => {
             } 
         });
     } catch (err) {
-        console.error('Login error:', err);
+        console.error('LOGIN ERROR:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -748,7 +753,7 @@ function getPropertyPrice(pos) {
     return prices[pos] || 0;
 }
 
-// Очистка старых игр каждые 30 минут
+// Очистка старых игр
 setInterval(async () => {
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
     await Game.deleteMany({ 
@@ -761,5 +766,6 @@ setInterval(async () => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Public path: ${publicPath}`);
     console.log(`MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Local'}`);
 });

@@ -30,9 +30,9 @@ const activeGames = new Map();
 app.use(cors());
 app.use(express.json());
 
-// ВАЖНО: правильный путь к статическим файлам для Render
-// В Render структура: /opt/render/project/src/public/
-const publicPath = path.join(__dirname, '..', 'public');
+// ВАЖНО: правильный путь к статическим файлам
+// HTML файлы лежат в корне, рядом с server/
+const publicPath = path.join(__dirname, '..');
 console.log('Public path:', publicPath);
 app.use(express.static(publicPath));
 

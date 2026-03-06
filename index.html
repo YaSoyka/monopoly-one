@@ -6,7 +6,6 @@
     <title>Monopoly One - Поиск игр</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // Конфигурация Tailwind для тёмной темы
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -14,7 +13,6 @@
             }
         }
         
-        // Проверяем сохранённую тему при загрузке страницы (ДО рендера)
         if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         } else {
@@ -89,6 +87,13 @@
         input:checked + .toggle-slider:before {
             transform: translateX(20px);
         }
+        .search-dropdown {
+            animation: dropdownSlide 0.2s ease-out;
+        }
+        @keyframes dropdownSlide {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
@@ -140,7 +145,6 @@
     <!-- Create Game Modal -->
     <div v-if="showCreateGameModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div class="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex max-h-[90vh]">
-            <!-- Left Side - Game Modes -->
             <div class="w-1/3 bg-gray-50 dark:bg-gray-900 p-6 border-r border-gray-200 dark:border-gray-700">
                 <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white">Режим игры</h3>
                 
@@ -161,7 +165,6 @@
                 </div>
             </div>
             
-            <!-- Right Side - Settings -->
             <div class="w-2/3 p-6 flex flex-col bg-white dark:bg-gray-800">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="font-bold text-xl text-gray-800 dark:text-white">
@@ -172,7 +175,6 @@
                     </button>
                 </div>
                 
-                <!-- Players Count -->
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Игроки</label>
                     <div class="flex gap-2">
@@ -191,12 +193,10 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Режим 2x2 доступен только VIP-игрокам.</p>
                 </div>
                 
-                <!-- Room Settings -->
                 <div class="mb-6">
                     <h4 class="font-semibold text-gray-800 dark:text-white mb-4">Настройки комнаты</h4>
                     
                     <div class="space-y-4">
-                        <!-- Private Room -->
                         <div class="flex items-center justify-between">
                             <div>
                                 <div class="font-medium text-sm text-gray-700 dark:text-gray-300">Приватная комната</div>
@@ -208,7 +208,6 @@
                             </label>
                         </div>
                         
-                        <!-- Auto Start -->
                         <div class="flex items-center justify-between">
                             <div>
                                 <div class="font-medium text-sm text-gray-700 dark:text-gray-300">Автостарт игры</div>
@@ -222,7 +221,6 @@
                     </div>
                 </div>
                 
-                <!-- VIP Info (у нас VIP бесплатный) -->
                 <div class="mt-auto bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl p-4 text-white mb-4">
                     <div class="flex items-center gap-2 mb-2">
                         <i class="fas fa-crown"></i>
@@ -231,7 +229,6 @@
                     <p class="text-sm opacity-90">У вас есть доступ ко всем режимам и приватным комнатам бесплатно навсегда!</p>
                 </div>
                 
-                <!-- Create Button -->
                 <button @click="createGameWithSettings" 
                         class="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-lg shadow-lg transition-all hover:scale-[1.02]">
                     Создать комнату
@@ -253,7 +250,7 @@
         </div>
     </div>
 
-    <!-- Header -->
+    <!-- Header с поиском друзей -->
     <header class="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
@@ -270,7 +267,47 @@
                     <a href="/inventory.html" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Инвентарь</a>
                 </nav>
 
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <!-- Поиск друзей -->
+                    <div class="relative hidden sm:block">
+                        <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-1.5 w-64 transition-all focus-within:ring-2 focus-within:ring-green-500 focus-within:bg-white dark:focus-within:bg-gray-700">
+                            <i class="fas fa-search text-gray-400 text-sm mr-2"></i>
+                            <input 
+                                v-model="globalSearchQuery" 
+                                @input="searchUsers" 
+                                @focus="showSearchResults = true"
+                                type="text" 
+                                placeholder="Найти друга по нику..." 
+                                class="bg-transparent border-0 outline-none text-sm w-full dark:text-white placeholder-gray-400"
+                            >
+                            <button v-if="globalSearchQuery" @click="clearSearch" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Результаты поиска -->
+                        <div v-if="showSearchResults && (searchResults.length > 0 || searchLoading)" class="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 search-dropdown z-50">
+                            <div v-if="searchLoading" class="px-4 py-3 text-center text-gray-500 dark:text-gray-400 text-sm">
+                                <i class="fas fa-spinner fa-spin mr-2"></i>Поиск...
+                            </div>
+                            <div v-else-if="searchResults.length === 0 && globalSearchQuery.length >= 2" class="px-4 py-3 text-center text-gray-500 dark:text-gray-400 text-sm">
+                                Пользователи не найдены
+                            </div>
+                            <div v-else>
+                                <div v-for="user in searchResults" :key="user._id" class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-3">
+                                    <img :src="user.avatar" class="w-8 h-8 rounded-lg object-cover">
+                                    <div class="flex-1">
+                                        <div class="font-medium text-sm dark:text-white">{{ user.nick }}</div>
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">Уровень {{ user.level }}</div>
+                                    </div>
+                                    <button v-if="isAuthenticated && user._id !== currentUserId" @click.stop="addFriend(user._id)" class="text-green-500 hover:text-green-600 p-1" title="Добавить в друзья">
+                                        <i class="fas fa-user-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <button @click="toggleTheme" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                         <i class="fas" :class="isDark ? 'fa-sun text-yellow-400' : 'fa-moon text-gray-600'"></i>
                     </button>
@@ -564,7 +601,13 @@ createApp({
             selectedMode: 'classic',
             selectedPlayers: 4,
             isPrivate: false,
-            autoStart: true
+            autoStart: true,
+            // Новые данные для поиска
+            globalSearchQuery: '',
+            searchResults: [],
+            searchLoading: false,
+            showSearchResults: false,
+            searchTimeout: null
         }
     },
     
@@ -575,11 +618,13 @@ createApp({
             return this.friends.filter(f => 
                 f.nick?.toLowerCase().includes(this.friendSearch.toLowerCase())
             );
+        },
+        currentUserId() {
+            return this.user?._id || this.user?.id;
         }
     },
     
     async mounted() {
-        // Синхронизируем isDark с реальным состоянием DOM
         this.isDark = document.documentElement.classList.contains('dark');
         
         this.generateDailyTasks();
@@ -596,6 +641,10 @@ createApp({
             if (!e.target.closest('.relative')) {
                 this.showMenu = false;
             }
+            // Закрываем поиск при клике вне его
+            if (!e.target.closest('.search-dropdown') && !e.target.closest('input[type="text"]')) {
+                this.showSearchResults = false;
+            }
         });
     },
     
@@ -603,6 +652,7 @@ createApp({
         if (this.taskTimer) clearInterval(this.taskTimer);
         if (this.resetTimer) clearInterval(this.resetTimer);
         if (this.socket) this.socket.disconnect();
+        if (this.searchTimeout) clearTimeout(this.searchTimeout);
     },
     
     methods: {
@@ -627,6 +677,71 @@ createApp({
                     }
                 });
             });
+        },
+        
+        // Новый метод поиска пользователей
+        async searchUsers() {
+            if (this.searchTimeout) clearTimeout(this.searchTimeout);
+            
+            if (!this.globalSearchQuery || this.globalSearchQuery.length < 2) {
+                this.searchResults = [];
+                this.showSearchResults = false;
+                return;
+            }
+            
+            this.searchLoading = true;
+            this.showSearchResults = true;
+            
+            // Дебаунсинг запроса
+            this.searchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/users/search?q=${encodeURIComponent(this.globalSearchQuery)}`, {
+                        headers: { 'Authorization': 'Bearer ' + (this.token || '') }
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.searchResults = data.users || [];
+                    } else {
+                        this.searchResults = [];
+                    }
+                } catch (err) {
+                    console.error('Search error:', err);
+                    this.searchResults = [];
+                } finally {
+                    this.searchLoading = false;
+                }
+            }, 300);
+        },
+        
+        clearSearch() {
+            this.globalSearchQuery = '';
+            this.searchResults = [];
+            this.showSearchResults = false;
+        },
+        
+        async addFriend(userId) {
+            if (!this.isAuthenticated) {
+                this.openAuthModal();
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/friends/add/${userId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + this.token }
+                });
+                
+                if (res.ok) {
+                    alert('Заявка в друзья отправлена!');
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Ошибка при добавлении в друзья');
+                }
+            } catch (err) {
+                console.error('Add friend error:', err);
+                alert('Ошибка при добавлении в друзья');
+            }
         },
         
         generateDailyTasks() {

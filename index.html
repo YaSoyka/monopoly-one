@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monopoly One - Поиск игр</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Конфигурация Tailwind для тёмной темы
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+        
+        // Проверяем сохранённую тему при загрузке страницы (ДО рендера)
+        if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .vip-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .chat-enter {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .task-timer {
+            font-variant-numeric: tabular-nums;
+        }
+        .game-mode-active {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+        }
+        .player-count-btn {
+            transition: all 0.2s ease;
+        }
+        .player-count-btn.active {
+            background: #22c55e;
+            color: white;
+            border-color: #22c55e;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e5e7eb;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #22c55e;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+<div id="app">
+    <!-- Auth Modal -->
+    <div v-if="showAuthModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md shadow-2xl relative">
+            <button @click="closeAuthModal" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-2xl">
+                    <i class="fas fa-crown"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2 dark:text-white">Monopoly One</h2>
+                <p class="text-gray-500 dark:text-gray-400">Войдите или создайте аккаунт</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div v-if="authMode === 'register'">
+                    <input v-model="authData.nick" type="text" placeholder="Придумайте ник" 
+                           class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                </div>
+                <input v-model="authData.email" type="email" placeholder="Email" 
+                       class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                <input v-model="authData.password" type="password" placeholder="Пароль" 
+                       class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                
+                <button @click="handleAuth" class="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors">
+                    {{ authMode === 'login' ? 'Войти' : 'Создать аккаунт' }}
+                </button>
+                
+                <p class="text-center text-sm text-gray-500 dark:text-gray-400">
+                    {{ authMode === 'login' ? 'Нет аккаунта?' : 'Уже есть аккаунт?' }}
+                    <button @click="authMode = authMode === 'login' ? 'register' : 'login'" class="text-green-500 hover:underline ml-1">
+                        {{ authMode === 'login' ? 'Зарегистрироваться' : 'Войти' }}
+                    </button>
+                </p>
+                
+                <div v-if="authError" class="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm text-center">
+                    {{ authError }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Game Modal -->
+    <div v-if="showCreateGameModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex max-h-[90vh]">
+            <!-- Left Side - Game Modes -->
+            <div class="w-1/3 bg-gray-50 dark:bg-gray-900 p-6 border-r border-gray-200 dark:border-gray-700">
+                <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white">Режим игры</h3>
+                
+                <div class="space-y-3">
+                    <div @click="selectedMode = 'classic'" 
+                         :class="{'game-mode-active': selectedMode === 'classic'}"
+                         class="p-4 rounded-xl cursor-pointer transition-all border-2 border-transparent hover:border-green-500 bg-white dark:bg-gray-800 shadow-sm">
+                        <div class="font-semibold mb-1 dark:text-white">Обычная игра</div>
+                        <div class="text-xs opacity-80 dark:text-gray-300">Классические правила игры</div>
+                    </div>
+                    
+                    <div @click="selectedMode = 'fast'"
+                         :class="{'game-mode-active': selectedMode === 'fast'}"
+                         class="p-4 rounded-xl cursor-pointer transition-all border-2 border-transparent hover:border-green-500 bg-white dark:bg-gray-800 shadow-sm">
+                        <div class="font-semibold mb-1 dark:text-white">Быстрая игра</div>
+                        <div class="text-xs opacity-80 dark:text-gray-300">Третий кубик и дополнительные правила, ускоряющие матч</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Side - Settings -->
+            <div class="w-2/3 p-6 flex flex-col bg-white dark:bg-gray-800">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-xl text-gray-800 dark:text-white">
+                        {{ selectedMode === 'classic' ? 'Обычная игра' : 'Быстрая игра' }}
+                    </h3>
+                    <button @click="showCreateGameModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <!-- Players Count -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Игроки</label>
+                    <div class="flex gap-2">
+                        <button v-for="count in [2, 3, 4, 5, 6]" :key="count"
+                                @click="selectedPlayers = count"
+                                :class="{'active': selectedPlayers === count}"
+                                class="player-count-btn w-10 h-10 rounded-lg border-2 border-gray-300 dark:border-gray-600 font-semibold text-sm hover:border-green-500 dark:text-white">
+                            {{ count }}
+                        </button>
+                        <button @click="selectedPlayers = 2"
+                                :class="{'active': selectedPlayers === 2}"
+                                class="player-count-btn px-3 h-10 rounded-lg border-2 border-gray-300 dark:border-gray-600 font-semibold text-sm hover:border-green-500 dark:text-white">
+                            2x2
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Режим 2x2 доступен только VIP-игрокам.</p>
+                </div>
+                
+                <!-- Room Settings -->
+                <div class="mb-6">
+                    <h4 class="font-semibold text-gray-800 dark:text-white mb-4">Настройки комнаты</h4>
+                    
+                    <div class="space-y-4">
+                        <!-- Private Room -->
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-sm text-gray-700 dark:text-gray-300">Приватная комната</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">Только по приглашению</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" v-model="isPrivate">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <!-- Auto Start -->
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-sm text-gray-700 dark:text-gray-300">Автостарт игры</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">Начать когда все готовы</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" v-model="autoStart">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- VIP Info (у нас VIP бесплатный) -->
+                <div class="mt-auto bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl p-4 text-white mb-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-crown"></i>
+                        <span class="font-bold">VIP активен</span>
+                    </div>
+                    <p class="text-sm opacity-90">У вас есть доступ ко всем режимам и приватным комнатам бесплатно навсегда!</p>
+                </div>
+                
+                <!-- Create Button -->
+                <button @click="createGameWithSettings" 
+                        class="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-lg shadow-lg transition-all hover:scale-[1.02]">
+                    Создать комнату
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guest Banner -->
+    <div v-if="!isAuthenticated && !showAuthModal && !showCreateGameModal" class="fixed top-16 left-0 right-0 z-30 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-3 shadow-lg">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-user-circle text-xl"></i>
+                <span class="text-sm font-medium">Вы просматриваете сайт как гость. Войдите, чтобы играть с друзьями!</span>
+            </div>
+            <button @click="openAuthModal" class="px-4 py-1.5 bg-white text-green-600 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors">
+                Войти
+            </button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="#" @click.prevent="goHome" class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white shadow-lg shadow-green-500/30">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <span class="text-xl font-bold gradient-text">Monopoly One</span>
+                </a>
+
+                <nav class="hidden md:flex items-center gap-6">
+                    <a href="#" @click.prevent="goHome" class="text-green-600 dark:text-green-400 font-semibold nav-item">Поиск игр</a>
+                    <a href="/friends.html" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Друзья</a>
+                    <a href="/inventory.html" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Инвентарь</a>
+                </nav>
+
+                <div class="flex items-center gap-4">
+                    <button @click="toggleTheme" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <i class="fas" :class="isDark ? 'fa-sun text-yellow-400' : 'fa-moon text-gray-600'"></i>
+                    </button>
+                    
+                    <button v-if="!isAuthenticated" @click="openAuthModal" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">
+                        Войти
+                    </button>
+                    
+                    <div v-if="user" class="relative">
+                        <button @click="showMenu = !showMenu" class="flex items-center gap-3 p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
+                            <img :src="user.avatar" class="w-8 h-8 rounded-lg object-cover">
+                            <span class="hidden sm:block font-medium text-sm dark:text-white">{{ user.nick }}</span>
+                            <i v-if="user.vip" class="fas fa-crown text-yellow-400 text-xs" title="VIP"></i>
+                            <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                        </button>
+                        
+                        <div v-if="showMenu" class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
+                            <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                                <p class="font-semibold dark:text-white">{{ user.nick }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Уровень {{ user.level }} <span v-if="user.vip" class="text-yellow-500 ml-1">VIP</span></p>
+                            </div>
+                            <a href="/profile.html" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm dark:text-gray-200">Профиль</a>
+                            <a href="/settings.html" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm dark:text-gray-200">Настройки</a>
+                            <div class="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
+                                <button @click="logout" class="block w-full text-left px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm">Выйти</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-20 pb-12 min-h-screen" :class="{ 'pt-28': !isAuthenticated }">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left Sidebar -->
+                <div class="lg:col-span-4 space-y-6">
+                    <!-- Tasks -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 card-hover">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-lg dark:text-white">Задания</h3>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Обновление через {{ taskResetTime }}</span>
+                        </div>
+                        <div class="space-y-3" v-if="dailyTasks.length > 0">
+                            <div v-for="task in dailyTasks" :key="task.id" class="task-card p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 cursor-pointer">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="text-sm font-medium dark:text-gray-200">{{ task.title }}</span>
+                                    <span class="text-sm font-bold" :class="task.completed ? 'text-green-500' : 'text-gray-400'">{{ task.current }}/{{ task.total }}</span>
+                                </div>
+                                <div class="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                    <span class="flex items-center gap-1"><i class="fas fa-star text-yellow-400"></i> {{ task.xp }} XP</span>
+                                    <span v-if="task.timeLeft > 0" class="task-timer text-orange-500"><i class="fas fa-clock"></i> {{ formatTime(task.timeLeft) }}</span>
+                                </div>
+                                <div class="h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                                    <div class="h-full bg-green-500 rounded-full transition-all" :style="{width: (task.current/task.total*100) + '%'}"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                            Загрузка заданий...
+                        </div>
+                    </div>
+
+                    <!-- Online Friends -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 card-hover">
+                        <h3 class="font-bold text-lg mb-4 dark:text-white">Друзья онлайн</h3>
+                        <div class="relative">
+                            <input type="text" placeholder="Поиск по друзьям" v-model="friendSearch"
+                                   class="w-full pl-10 pr-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 text-sm focus:ring-2 focus:ring-green-500 dark:text-white">
+                            <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                        </div>
+                        <div class="mt-4 space-y-2">
+                            <div v-for="friend in filteredFriends" :key="friend._id" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer friend-avatar">
+                                <div class="relative">
+                                    <img :src="friend.avatar" class="w-10 h-10 rounded-lg object-cover">
+                                    <span v-if="friend.online" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full pulse-dot"></span>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-medium text-sm dark:text-white">{{ friend.nick }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ friend.online ? 'В сети' : 'Не в сети' }}</div>
+                                </div>
+                            </div>
+                            <div v-if="filteredFriends.length === 0" class="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                                <span v-if="isAuthenticated">Нет друзей онлайн</span>
+                                <span v-else>Войдите, чтобы увидеть друзей</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Content -->
+                <div class="lg:col-span-8 space-y-6">
+                    <!-- VIP Banner -->
+                    <div v-if="isAuthenticated" class="rounded-2xl vip-gradient p-6 text-white relative overflow-hidden shadow-lg">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                        <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+                        
+                        <div class="relative z-10 flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <i class="fas fa-crown text-yellow-300 text-xl"></i>
+                                    <span class="font-bold text-xl">VIP активен</span>
+                                </div>
+                                <p class="text-white/90 text-sm mb-4 max-w-md">
+                                    У вас есть доступ к приватным комнатам, всем режимам игры и кредитам во время игры.
+                                </p>
+                            </div>
+                            <div class="hidden sm:block text-center">
+                                <div class="w-20 h-20 mx-auto mb-2 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center border border-white/30">
+                                    <i class="fas fa-crown text-3xl text-yellow-300"></i>
+                                </div>
+                                <div class="text-xs text-white/80">Бесплатно навсегда</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Guest Promo Banner -->
+                    <div v-else class="rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 p-6 text-white relative overflow-hidden shadow-lg">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                        
+                        <div class="relative z-10 flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <i class="fas fa-gamepad text-green-400 text-xl"></i>
+                                    <span class="font-bold text-xl">Начните играть бесплатно</span>
+                                </div>
+                                <p class="text-gray-300 text-sm mb-4 max-w-md">
+                                    Создайте аккаунт и получите VIP-статус навсегда, стартовый инвентарь и доступ к онлайн-играм.
+                                </p>
+                            </div>
+                            <div class="hidden sm:block text-center">
+                                <div class="w-20 h-20 mx-auto mb-2 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center border border-white/20">
+                                    <i class="fas fa-dice text-3xl text-green-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Create Game Button -->
+                    <button @click="openCreateGameModal" :disabled="!isAuthenticated" 
+                            class="w-full py-4 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-lg shadow-lg shadow-green-500/30 transition-all hover:scale-[1.01] disabled:hover:scale-100 flex items-center justify-center gap-2">
+                        <i class="fas fa-plus"></i>Создать игру
+                    </button>
+
+                    <!-- Chat -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold dark:text-white">Общий чат</h3>
+                                <span class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                    {{ onlineCount }} онлайн
+                                </span>
+                            </div>
+                            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><i class="fas fa-cog"></i></button>
+                        </div>
+                        
+                        <div class="h-80 overflow-y-auto p-4 space-y-2" ref="chatContainer">
+                            <div v-for="(msg, idx) in messages" :key="idx" class="chat-enter flex gap-3 text-sm">
+                                <span class="text-gray-400 dark:text-gray-500 text-xs font-mono mt-0.5">{{ msg.time }}</span>
+                                <div class="flex-1">
+                                    <span v-if="msg.system" class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 mr-2">
+                                        {{ msg.user }}
+                                    </span>
+                                    <span v-else class="font-semibold" :style="{color: msg.color || '#22c55e'}">{{ msg.user }}</span>
+                                    <span class="text-gray-600 dark:text-gray-300 ml-1">{{ msg.text }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-200 dark:border-gray-700">
+                            <div v-if="!isAuthenticated" class="text-center py-2 text-gray-500 dark:text-gray-400 text-sm">
+                                <button @click="openAuthModal" class="text-green-500 hover:underline">Войдите</button>, чтобы писать в чат
+                            </div>
+                            <div v-else class="flex gap-2">
+                                <input v-model="newMessage" @keyup.enter="sendMessage" type="text" placeholder="Написать сообщение..." 
+                                       class="flex-1 px-4 py-2 rounded-xl bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-transparent dark:text-white">
+                                <button @click="sendMessage" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-colors">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Waiting Games -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-lg dark:text-white">Ожидают игры</h3>
+                            <button @click="refreshGames" class="text-gray-400 hover:text-green-600 transition-colors">
+                                <i class="fas fa-sync-alt" :class="{'fa-spin': loadingGames}"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div v-for="game in waitingGames" :key="game.roomId" 
+                                 class="game-card flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-transparent hover:border-green-500/30 cursor-pointer group">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white shadow-lg">
+                                        <i class="fas fa-dice"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold group-hover:text-green-600 transition-colors dark:text-white">{{ game.name || 'Комната ' + game.roomId.slice(-4) }}</div>
+                                        <div class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                            <img :src="game.host?.avatar || '/default-avatar.png'" class="w-5 h-5 rounded-full">
+                                            {{ game.host?.nick || 'Неизвестно' }}
+                                            <span class="w-1 h-1 bg-gray-400 rounded-full"></span>
+                                            {{ game.players?.length || 0 }}/{{ game.maxPlayers || 6 }} игроков
+                                        </div>
+                                    </div>
+                                </div>
+                                <button v-if="isAuthenticated" @click="joinGame(game.roomId)" class="px-4 py-2 bg-green-500/10 text-green-600 dark:text-green-400 font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-green-500 hover:text-white">
+                                    Присоединиться
+                                </button>
+                                <button v-else @click="openAuthModal" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                                    Войти
+                                </button>
+                            </div>
+                            
+                            <div v-if="waitingGames.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                <i class="fas fa-gamepad text-4xl mb-3 text-gray-300 dark:text-gray-600"></i>
+                                <p>Нет активных игр. <span v-if="isAuthenticated">Создайте свою!</span><span v-else>Войдите и создайте свою!</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/app.js"></script>
+<script>
+const { createApp } = Vue;
+
+const ALL_TASKS = [
+    { title: 'Пройдите поле «Старт»', total: 1, xp: 50 },
+    { title: 'Купите 3 улицы одного цвета', total: 1, xp: 150 },
+    { title: 'Постройте дом на улице', total: 1, xp: 100 },
+    { title: 'Выбросите дубль три раза подряд', total: 3, xp: 200 },
+    { title: 'Посетите тюрьму', total: 1, xp: 30 },
+    { title: 'Выйдите из тюрьмы, заплатив $50', total: 1, xp: 40 },
+    { title: 'Выйдите из тюрьмы по карточке', total: 1, xp: 60 },
+    { title: 'Заплатите налог $200', total: 1, xp: 25 },
+    { title: 'Получите $200 от банка', total: 1, xp: 25 },
+    { title: 'Купите железную дорогу', total: 1, xp: 75 },
+    { title: 'Владейте всеми 4 железными дорогами', total: 4, xp: 300 },
+    { title: 'Купите коммунальное предприятие', total: 1, xp: 60 },
+    { title: 'Заплатите аренду сопернику', total: 3, xp: 100 },
+    { title: 'Получите аренду от соперника', total: 3, xp: 100 },
+    { title: 'Выполните задание карточки «Шанс»', total: 2, xp: 80 },
+    { title: 'Выполните задание карточки «Общественная казна»', total: 2, xp: 80 },
+    { title: 'Постройте отель', total: 1, xp: 250 },
+    { title: 'Обменяйтесь улицами с игроком', total: 1, xp: 120 },
+    { title: 'Обанкротите соперника', total: 1, xp: 500 },
+    { title: 'Выиграйте игру', total: 1, xp: 300 },
+    { title: 'Соберите полный набор улиц (монополию)', total: 1, xp: 200 },
+    { title: 'Заплатите налог на роскошь', total: 1, xp: 40 },
+    { title: 'Пройдите всё поле без остановок', total: 1, xp: 150 },
+    { title: 'Купите улицу за $300+', total: 1, xp: 100 }
+];
+
+createApp({
+    data() {
+        return {
+            isAuthenticated: false,
+            showAuthModal: false,
+            showCreateGameModal: false,
+            authMode: 'login',
+            authData: { nick: '', email: '', password: '' },
+            authError: '',
+            isDark: false,
+            showMenu: false,
+            user: null,
+            token: localStorage.getItem('token'),
+            friendSearch: '',
+            onlineCount: 0,
+            newMessage: '',
+            loadingGames: false,
+            messages: [],
+            friends: [],
+            dailyTasks: [],
+            taskResetTime: '00:00',
+            waitingGames: [],
+            socket: null,
+            taskTimer: null,
+            resetTimer: null,
+            selectedMode: 'classic',
+            selectedPlayers: 4,
+            isPrivate: false,
+            autoStart: true
+        }
+    },
+    
+    computed: {
+        filteredFriends() {
+            if (!this.isAuthenticated) return [];
+            if (!this.friendSearch) return this.friends.filter(f => f.online);
+            return this.friends.filter(f => 
+                f.nick?.toLowerCase().includes(this.friendSearch.toLowerCase())
+            );
+        }
+    },
+    
+    async mounted() {
+        // Синхронизируем isDark с реальным состоянием DOM
+        this.isDark = document.documentElement.classList.contains('dark');
+        
+        this.generateDailyTasks();
+        this.startTaskTimers();
+        this.initSocket();
+        
+        if (this.token) {
+            await this.loadUser();
+        }
+        
+        this.loadGames();
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.relative')) {
+                this.showMenu = false;
+            }
+        });
+    },
+    
+    beforeUnmount() {
+        if (this.taskTimer) clearInterval(this.taskTimer);
+        if (this.resetTimer) clearInterval(this.resetTimer);
+        if (this.socket) this.socket.disconnect();
+    },
+    
+    methods: {
+        initSocket() {
+            this.socket = io({
+                auth: { token: this.token || 'guest' }
+            });
+            
+            this.socket.on('connect', () => {
+                console.log('Connected to server');
+            });
+            
+            this.socket.on('onlineCount', (count) => {
+                this.onlineCount = count;
+            });
+            
+            this.socket.on('newMessage', (msg) => {
+                this.messages.push(msg);
+                this.$nextTick(() => {
+                    if (this.$refs.chatContainer) {
+                        this.$refs.chatContainer.scrollTop = this.$refs.chatContainer.scrollHeight;
+                    }
+                });
+            });
+        },
+        
+        generateDailyTasks() {
+            try {
+                const savedDate = localStorage.getItem('tasksDate');
+                const savedTasks = localStorage.getItem('dailyTasks');
+                const today = new Date().toDateString();
+                
+                if (savedDate === today && savedTasks) {
+                    const parsed = JSON.parse(savedTasks);
+                    this.dailyTasks = parsed.map(t => ({
+                        ...t,
+                        timeLeft: t.timeLeft || 24 * 60 * 60
+                    }));
+                } else {
+                    const shuffled = [...ALL_TASKS].sort(() => 0.5 - Math.random());
+                    this.dailyTasks = shuffled.slice(0, 4).map((task, idx) => ({
+                        id: idx + 1,
+                        ...task,
+                        current: 0,
+                        completed: false,
+                        timeLeft: 24 * 60 * 60
+                    }));
+                    this.saveTasks();
+                }
+            } catch (e) {
+                console.error('Error generating tasks:', e);
+                this.dailyTasks = ALL_TASKS.slice(0, 4).map((task, idx) => ({
+                    id: idx + 1,
+                    ...task,
+                    current: 0,
+                    completed: false,
+                    timeLeft: 24 * 60 * 60
+                }));
+            }
+        },
+        
+        saveTasks() {
+            try {
+                localStorage.setItem('tasksDate', new Date().toDateString());
+                localStorage.setItem('dailyTasks', JSON.stringify(this.dailyTasks));
+            } catch (e) {
+                console.error('Error saving tasks:', e);
+            }
+        },
+        
+        startTaskTimers() {
+            this.taskTimer = setInterval(() => {
+                let changed = false;
+                this.dailyTasks.forEach(task => {
+                    if (task.timeLeft > 0) {
+                        task.timeLeft--;
+                        changed = true;
+                    }
+                });
+                if (changed) {
+                    this.saveTasks();
+                }
+            }, 1000);
+            
+            const updateResetTime = () => {
+                const now = new Date();
+                const tomorrow = new Date(now);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(0, 0, 0, 0);
+                
+                const diff = Math.floor((tomorrow - now) / 1000);
+                const hours = Math.floor(diff / 3600);
+                const mins = Math.floor((diff % 3600) / 60);
+                this.taskResetTime = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+                
+                if (diff <= 0) {
+                    this.generateDailyTasks();
+                }
+            };
+            
+            updateResetTime();
+            this.resetTimer = setInterval(updateResetTime, 60000);
+        },
+        
+        formatTime(seconds) {
+            if (!seconds || seconds <= 0) return '00:00:00';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        },
+        
+        goHome() {
+            window.location.reload();
+        },
+        
+        openAuthModal() {
+            this.showAuthModal = true;
+            this.authError = '';
+        },
+        
+        closeAuthModal() {
+            this.showAuthModal = false;
+            this.authData = { nick: '', email: '', password: '' };
+            this.authError = '';
+        },
+        
+        openCreateGameModal() {
+            if (!this.isAuthenticated) {
+                this.openAuthModal();
+                return;
+            }
+            this.showCreateGameModal = true;
+            this.selectedMode = 'classic';
+            this.selectedPlayers = 4;
+            this.isPrivate = false;
+            this.autoStart = true;
+        },
+        
+        async createGameWithSettings() {
+            try {
+                const res = await fetch('/api/games/create', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + this.token 
+                    },
+                    body: JSON.stringify({
+                        mode: this.selectedMode,
+                        maxPlayers: this.selectedPlayers,
+                        isPrivate: this.isPrivate,
+                        autoStart: this.autoStart
+                    })
+                });
+                
+                const data = await res.json();
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                this.showCreateGameModal = false;
+                window.location.href = `/game.html?room=${data.roomId}`;
+            } catch (err) {
+                alert('Ошибка создания игры');
+                console.error(err);
+            }
+        },
+        
+        async handleAuth() {
+            try {
+                const endpoint = this.authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.authData)
+                });
+                
+                const data = await res.json();
+                if (data.error) {
+                    this.authError = data.error;
+                    return;
+                }
+                
+                this.token = data.token;
+                localStorage.setItem('token', this.token);
+                this.user = data.user;
+                this.isAuthenticated = true;
+                this.showAuthModal = false;
+                this.authError = '';
+                this.authData = { nick: '', email: '', password: '' };
+                
+                if (this.socket) {
+                    this.socket.auth = { token: this.token };
+                    this.socket.disconnect().connect();
+                }
+                
+                this.loadGames();
+                this.loadFriends();
+            } catch (err) {
+                this.authError = 'Ошибка соединения';
+            }
+        },
+        
+        async loadUser() {
+            try {
+                const res = await fetch('/api/user/me', {
+                    headers: { 'Authorization': 'Bearer ' + this.token }
+                });
+                if (res.ok) {
+                    this.user = await res.json();
+                    this.isAuthenticated = true;
+                    this.loadFriends();
+                } else {
+                    localStorage.removeItem('token');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        },
+        
+        async loadFriends() {
+            if (!this.isAuthenticated) return;
+            try {
+                const res = await fetch('/api/friends', {
+                    headers: { 'Authorization': 'Bearer ' + this.token }
+                });
+                this.friends = await res.json();
+            } catch (err) {
+                console.error(err);
+            }
+        },
+        
+        async loadGames() {
+            this.loadingGames = true;
+            try {
+                const res = await fetch('/api/games');
+                this.waitingGames = await res.json();
+            } catch (err) {
+                console.error(err);
+            }
+            this.loadingGames = false;
+        },
+        
+        async joinGame(roomId) {
+            if (!this.isAuthenticated) {
+                this.openAuthModal();
+                return;
+            }
+            try {
+                const res = await fetch(`/api/games/join/${roomId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + this.token }
+                });
+                if (res.ok) {
+                    window.location.href = `/game.html?room=${roomId}`;
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Ошибка присоединения');
+                }
+            } catch (err) {
+                alert('Ошибка присоединения');
+            }
+        },
+        
+        sendMessage() {
+            if (!this.isAuthenticated) {
+                this.openAuthModal();
+                return;
+            }
+            if (!this.newMessage.trim()) return;
+            
+            this.socket.emit('chatMessage', { text: this.newMessage, roomId: 'global' });
+            this.newMessage = '';
+        },
+        
+        refreshGames() {
+            this.loadGames();
+        },
+        
+        toggleTheme() {
+            this.isDark = !this.isDark;
+            if (this.isDark) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+        },
+        
+        logout() {
+            localStorage.removeItem('token');
+            this.isAuthenticated = false;
+            this.user = null;
+            this.token = null;
+            this.showMenu = false;
+            if (this.socket) {
+                this.socket.auth = { token: 'guest' };
+                this.socket.disconnect().connect();
+            }
+        }
+    }
+}).mount('#app');
+</script>
+
+</body>
+</html>

@@ -502,7 +502,7 @@
                         </div>
                     </div>
 
-                    <!-- Waiting Games - ИСПРАВЛЕНО с красным крестиком -->
+                    <!-- Waiting Games - С красным крестиком для владельца -->
                     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-bold text-lg dark:text-white">Ожидают игры</h3>
@@ -515,7 +515,7 @@
                             <div v-for="game in waitingGames" :key="game.roomId" 
                                  class="game-card flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-transparent hover:border-green-500/30 group relative">
                                 
-                                <!-- Красный крестик для удаления своей комнаты -->
+                                <!-- Красный крестик для удаления своей комнаты (только для владельца) -->
                                 <div v-if="isAuthenticated && user && game.host && game.host._id === user._id" 
                                      @click.stop="deleteGame(game.roomId)"
                                      class="absolute -top-2 -right-2 w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg cursor-pointer z-10 transition-all hover:scale-110"
@@ -523,44 +523,28 @@
                                     <i class="fas fa-times"></i>
                                 </div>
                                 
-                                <div class="flex items-center gap-4 flex-1">
+                                <div class="flex items-center gap-4">
                                     <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white shadow-lg">
                                         <i class="fas fa-dice"></i>
                                     </div>
                                     <div>
-                                        <div class="font-semibold group-hover:text-green-600 transition-colors dark:text-white">
-                                            {{ game.name || 'Комната ' + game.roomId.slice(-4) }}
-                                            <span v-if="game.isTeamMode" class="ml-2 text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full">2x2</span>
-                                        </div>
+                                        <div class="font-semibold group-hover:text-green-600 transition-colors dark:text-white">{{ game.name || 'Комната ' + game.roomId.slice(-4) }}</div>
                                         <div class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
                                             <img :src="game.host?.avatar || '/default-avatar.png'" class="w-5 h-5 rounded-full">
                                             {{ game.host?.nick || 'Неизвестно' }}
                                             <span class="w-1 h-1 bg-gray-400 rounded-full"></span>
                                             {{ game.players?.length || 0 }}/{{ game.maxPlayers || 6 }} игроков
-                                            <span v-if="game.isPrivate" class="ml-2 text-xs">
-                                                <i class="fas fa-lock text-yellow-500"></i>
-                                            </span>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <div class="flex items-center gap-2">
-                                    <button v-if="isAuthenticated && user && game.host && game.host._id === user._id" 
-                                            @click.stop="deleteGame(game.roomId)"
-                                            class="px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 font-medium rounded-lg hover:bg-red-500 hover:text-white transition-all">
-                                        Закрыть
-                                    </button>
-                                    <button v-else-if="isAuthenticated" 
-                                            @click="joinGame(game.roomId)" 
-                                            class="px-4 py-2 bg-green-500/10 text-green-600 dark:text-green-400 font-medium rounded-lg hover:bg-green-500 hover:text-white transition-all">
-                                        Присоединиться
-                                    </button>
-                                    <button v-else 
-                                            @click="openAuthModal" 
-                                            class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
-                                        Войти
-                                    </button>
-                                </div>
+                                <!-- Кнопка Присоединиться (для всех, включая владельца) -->
+                                <button v-if="isAuthenticated" @click="joinGame(game.roomId)" class="px-4 py-2 bg-green-500/10 text-green-600 dark:text-green-400 font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-green-500 hover:text-white">
+                                    Присоединиться
+                                </button>
+                                <button v-else @click="openAuthModal" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                                    Войти
+                                </button>
                             </div>
                             
                             <div v-if="waitingGames.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -1028,7 +1012,7 @@ createApp({
             }
         },
         
-        // НОВЫЙ МЕТОД для удаления игры
+        // Метод для удаления игры (только для владельца)
         async deleteGame(roomId) {
             if (!confirm('Вы уверены, что хотите закрыть комнату? Все игроки будут удалены.')) {
                 return;

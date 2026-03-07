@@ -49,6 +49,11 @@
             color: white;
             border-color: #22c55e;
         }
+        .team-mode-btn.active {
+            background: #22c55e;
+            color: white;
+            border-color: #22c55e;
+        }
         .toggle-switch {
             position: relative;
             width: 44px;
@@ -142,7 +147,7 @@
         </div>
     </div>
 
-    <!-- Create Game Modal -->
+    <!-- Create Game Modal - ИСПРАВЛЕНО -->
     <div v-if="showCreateGameModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div class="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex max-h-[90vh]">
             <div class="w-1/3 bg-gray-50 dark:bg-gray-900 p-6 border-r border-gray-200 dark:border-gray-700">
@@ -177,17 +182,19 @@
                 
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Игроки</label>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 mb-2">
                         <button v-for="count in [2, 3, 4, 5, 6]" :key="count"
-                                @click="selectedPlayers = count"
-                                :class="{'active': selectedPlayers === count}"
+                                @click="selectPlayerCount(count)"
+                                :class="{'active': selectedPlayers === count && !isTeamMode}"
                                 class="player-count-btn w-10 h-10 rounded-lg border-2 border-gray-300 dark:border-gray-600 font-semibold text-sm hover:border-green-500 dark:text-white">
                             {{ count }}
                         </button>
-                        <button @click="selectedPlayers = 2"
-                                :class="{'active': selectedPlayers === 2}"
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="selectTeamMode"
+                                :class="{'team-mode-btn active': isTeamMode}"
                                 class="player-count-btn px-3 h-10 rounded-lg border-2 border-gray-300 dark:border-gray-600 font-semibold text-sm hover:border-green-500 dark:text-white">
-                            2x2
+                            2x2 (Командный)
                         </button>
                     </div>
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Режим 2x2 доступен только VIP-игрокам.</p>
@@ -600,9 +607,10 @@ createApp({
             resetTimer: null,
             selectedMode: 'classic',
             selectedPlayers: 4,
+            isTeamMode: false, // Новое поле для режима 2x2
             isPrivate: false,
             autoStart: true,
-            // Новые данные для поиска
+            // Данные для поиска
             globalSearchQuery: '',
             searchResults: [],
             searchLoading: false,
@@ -656,6 +664,17 @@ createApp({
     },
     
     methods: {
+        // Новые методы для выбора режима игры
+        selectPlayerCount(count) {
+            this.selectedPlayers = count;
+            this.isTeamMode = false;
+        },
+        
+        selectTeamMode() {
+            this.isTeamMode = true;
+            this.selectedPlayers = 4; // 2x2 = 4 игрока
+        },
+        
         initSocket() {
             this.socket = io({
                 auth: { token: this.token || 'guest' }
@@ -679,7 +698,7 @@ createApp({
             });
         },
         
-        // Новый метод поиска пользователей
+        // Метод поиска пользователей
         async searchUsers() {
             if (this.searchTimeout) clearTimeout(this.searchTimeout);
             
@@ -853,24 +872,29 @@ createApp({
             this.showCreateGameModal = true;
             this.selectedMode = 'classic';
             this.selectedPlayers = 4;
+            this.isTeamMode = false;
             this.isPrivate = false;
             this.autoStart = true;
         },
         
         async createGameWithSettings() {
             try {
+                // Если это командный режим, передаем специальный флаг
+                const gameData = {
+                    mode: this.selectedMode,
+                    maxPlayers: this.selectedPlayers,
+                    isPrivate: this.isPrivate,
+                    autoStart: this.autoStart,
+                    isTeamMode: this.isTeamMode // Добавляем флаг командного режима
+                };
+                
                 const res = await fetch('/api/games/create', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + this.token 
                     },
-                    body: JSON.stringify({
-                        mode: this.selectedMode,
-                        maxPlayers: this.selectedPlayers,
-                        isPrivate: this.isPrivate,
-                        autoStart: this.autoStart
-                    })
+                    body: JSON.stringify(gameData)
                 });
                 
                 const data = await res.json();
@@ -1022,47 +1046,6 @@ createApp({
         }
     }
 }).mount('#app');
-</script>
-<!-- Тестовая кнопка -->
-<div style="position: fixed; bottom: 10px; right: 10px; z-index: 9999;">
-    <button onclick="testRegister()" style="background: red; color: white; padding: 10px; border-radius: 5px; border: none; cursor: pointer;">
-        ТЕСТ РЕГИСТРАЦИИ
-    </button>
-</div>
-
-<script>
-async function testRegister() {
-    try {
-        alert("Начинаем тест регистрации...");
-        
-        const testData = {
-            nick: "testuser" + Math.floor(Math.random() * 1000),
-            email: "test" + Date.now() + "@test.com",
-            password: "123456"
-        };
-        
-        alert("Отправляем запрос на /api/auth/register с данными: " + JSON.stringify(testData));
-        
-        const response = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(testData)
-        });
-        
-        alert("Статус ответа: " + response.status);
-        
-        const data = await response.json();
-        alert("Ответ сервера: " + JSON.stringify(data));
-        
-        if (response.ok) {
-            alert("УСПЕХ! Токен: " + data.token);
-        } else {
-            alert("ОШИБКА: " + data.error);
-        }
-    } catch (err) {
-        alert("КРИТИЧЕСКАЯ ОШИБКА: " + err.message + "\n" + err.stack);
-    }
-}
 </script>
 </body>
 </html>

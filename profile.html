@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monopoly One - Профиль</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+        
+        if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .vip-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .avatar-ring {
+            box-shadow: 0 0 0 4px #22c55e;
+        }
+        .stat-card {
+            transition: all 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        .inventory-item {
+            transition: all 0.2s ease;
+        }
+        .inventory-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .friend-avatar {
+            transition: transform 0.2s ease;
+        }
+        .friend-avatar:hover {
+            transform: scale(1.1);
+        }
+        .level-progress {
+            background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+<div id="app">
+    <!-- Auth Modal -->
+    <div v-if="showAuthModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md shadow-2xl relative">
+            <button @click="closeAuthModal" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-2xl">
+                    <i class="fas fa-crown"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2 dark:text-white">Monopoly One</h2>
+                <p class="text-gray-500 dark:text-gray-400">Войдите или создайте аккаунт</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div v-if="authMode === 'register'">
+                    <input v-model="authData.nick" type="text" placeholder="Придумайте ник" 
+                           class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                </div>
+                <input v-model="authData.email" type="email" placeholder="Email" 
+                       class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                <input v-model="authData.password" type="password" placeholder="Пароль" 
+                       class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                
+                <button @click="handleAuth" class="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors">
+                    {{ authMode === 'login' ? 'Войти' : 'Создать аккаунт' }}
+                </button>
+                
+                <p class="text-center text-sm text-gray-500 dark:text-gray-400">
+                    {{ authMode === 'login' ? 'Нет аккаунта?' : 'Уже есть аккаунт?' }}
+                    <button @click="authMode = authMode === 'login' ? 'register' : 'login'" class="text-green-500 hover:underline ml-1">
+                        {{ authMode === 'login' ? 'Зарегистрироваться' : 'Войти' }}
+                    </button>
+                </p>
+                
+                <div v-if="authError" class="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm text-center">
+                    {{ authError }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="/" class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white shadow-lg shadow-green-500/30">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <span class="text-xl font-bold gradient-text">Monopoly One</span>
+                </a>
+
+                <nav class="hidden md:flex items-center gap-6">
+                    <a href="/" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Поиск игр</a>
+                    <a href="/friends.html" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Друзья</a>
+                    <a href="/inventory.html" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Инвентарь</a>
+                </nav>
+
+                <div class="flex items-center gap-3">
+                    <button @click="toggleTheme" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <i class="fas" :class="isDark ? 'fa-sun text-yellow-400' : 'fa-moon text-gray-600'"></i>
+                    </button>
+                    
+                    <button v-if="!isAuthenticated" @click="openAuthModal" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">
+                        Войти
+                    </button>
+                    
+                    <div v-if="user" class="relative">
+                        <button @click="showMenu = !showMenu" class="flex items-center gap-3 p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
+                            <img :src="user.avatar" class="w-8 h-8 rounded-lg object-cover">
+                            <span class="hidden sm:block font-medium text-sm dark:text-white">{{ user.nick }}</span>
+                            <i v-if="user.vip" class="fas fa-crown text-yellow-400 text-xs" title="VIP"></i>
+                            <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                        </button>
+                        
+                        <div v-if="showMenu" class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
+                            <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                                <p class="font-semibold dark:text-white">{{ user.nick }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Уровень {{ user.level }} <span v-if="user.vip" class="text-yellow-500 ml-1">VIP</span></p>
+                            </div>
+                            <a href="/profile.html" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm dark:text-gray-200 text-green-600 dark:text-green-400">Профиль</a>
+                            <a href="/settings.html" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm dark:text-gray-200">Настройки</a>
+                            <div class="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
+                                <button @click="logout" class="block w-full text-left px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm">Выйти</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-20 pb-12 min-h-screen">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div v-if="!isAuthenticated" class="text-center py-20">
+                <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400 text-3xl">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2 dark:text-white">Требуется авторизация</h2>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">Войдите, чтобы просмотреть свой профиль</p>
+                <button @click="openAuthModal" class="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors">
+                    Войти в аккаунт
+                </button>
+            </div>
+
+            <div v-else-if="profile" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Column - Profile Info -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Profile Header Card -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <div class="flex flex-col md:flex-row gap-6">
+                            <!-- Avatar -->
+                            <div class="flex-shrink-0">
+                                <div class="relative">
+                                    <img :src="profile.avatar" class="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover avatar-ring">
+                                    <div v-if="profile.vip" class="absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white shadow-lg">
+                                        <i class="fas fa-crown text-sm"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Info -->
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <h1 class="text-3xl font-bold dark:text-white">{{ profile.nick }}</h1>
+                                    <span v-if="!profile.rank" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-sm flex items-center gap-1">
+                                        <i class="fas fa-question-circle"></i> Нет ранга
+                                    </span>
+                                </div>
+                                
+                                <!-- VK Link Button -->
+                                <a v-if="profile.vkLink" :href="profile.vkLink" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-[#4a76a8] hover:bg-[#3d6391] text-white rounded-lg transition-colors mb-4">
+                                    <i class="fab fa-vk"></i> Вконтакте
+                                </a>
+                                
+                                <!-- Stats -->
+                                <div class="flex gap-8 mt-4">
+                                    <div class="stat-card text-center cursor-pointer" @click="activeTab = 'games'">
+                                        <div class="text-3xl font-bold text-gray-800 dark:text-white">{{ profile.games || 0 }}</div>
+                                        <div class="text-sm text-gray-500 dark:text-gray-400">матчей</div>
+                                    </div>
+                                    <div class="stat-card text-center cursor-pointer" @click="activeTab = 'games'">
+                                        <div class="text-3xl font-bold text-green-600 dark:text-green-400">{{ profile.wins || 0 }}</div>
+                                        <div class="text-sm text-gray-500 dark:text-gray-400">побед</div>
+                                    </div>
+                                    <div class="stat-card text-center cursor-pointer" @click="activeTab = 'friends'">
+                                        <div class="text-3xl font-bold text-gray-800 dark:text-white">{{ profile.friends?.length || 0 }}</div>
+                                        <div class="text-sm text-gray-500 dark:text-gray-400">друзей</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Friends Preview -->
+                        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">Друзья</span>
+                                <button @click="activeTab = 'friends'" class="text-green-500 hover:text-green-600 text-sm">все <i class="fas fa-chevron-right text-xs"></i></button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div v-for="friend in profile.friends?.slice(0, 5)" :key="friend._id" class="friend-avatar relative cursor-pointer" @click="viewProfile(friend._id)">
+                                    <img :src="friend.avatar" class="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-gray-800">
+                                    <span v-if="friend.online" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></span>
+                                </div>
+                                <div v-if="(profile.friends?.length || 0) > 5" class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm text-gray-600 dark:text-gray-400">
+                                    +{{ profile.friends.length - 5 }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inventory Preview -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-lg dark:text-white">Инвентарь {{ profile.inventory?.length || 0 }}</h3>
+                            <a href="/inventory.html" class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-400 transition-colors">
+                                все <i class="fas fa-chevron-right text-xs ml-1"></i>
+                            </a>
+                        </div>
+                        
+                        <div v-if="profile.inventory?.length > 0" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                            <div v-for="item in profile.inventory.slice(0, 6)" :key="item.itemId" class="inventory-item bg-gray-50 dark:bg-gray-700 rounded-xl p-3 cursor-pointer">
+                                <img :src="item.image" :alt="item.name" class="w-full aspect-square object-contain mb-2 rounded-lg">
+                                <div class="text-xs text-center text-gray-700 dark:text-gray-300 truncate">{{ item.name }}</div>
+                            </div>
+                        </div>
+                        <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-box-open text-4xl mb-3 text-gray-300 dark:text-gray-600"></i>
+                            <p>Инвентарь пуст</p>
+                        </div>
+                    </div>
+
+                    <!-- Recent Games -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-lg dark:text-white">Последние игры</h3>
+                            <button @click="activeTab = 'games'" class="text-green-500 hover:text-green-600 text-sm">все <i class="fas fa-chevron-right text-xs"></i></button>
+                        </div>
+                        
+                        <div v-if="recentGames.length > 0" class="space-y-3">
+                            <div v-for="game in recentGames" :key="game._id" class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white">
+                                        <i class="fas fa-dice"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-sm dark:text-white">{{ game.mode === 'fast' ? 'Быстрая игра' : 'Обычная игра' }}</div>
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ formatDate(game.createdAt) }}</div>
+                                    </div>
+                                </div>
+                                <div :class="game.won ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'" class="font-bold text-sm">
+                                    {{ game.won ? 'Победа' : 'Поражение' }}
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-gamepad text-4xl mb-3 text-gray-300 dark:text-gray-600"></i>
+                            <p>Нет завершенных игр</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column - Level & Actions -->
+                <div class="space-y-6">
+                    <!-- Level Card -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold">
+                                {{ profile.level || 1 }}
+                            </div>
+                            <div>
+                                <div class="font-bold text-lg dark:text-white">{{ getRankName(profile.level) }}</div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">уровень {{ profile.level || 1 }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500 dark:text-gray-400">{{ profile.xp || 0 }} XP</span>
+                                <span class="text-gray-500 dark:text-gray-400">{{ xpToNextLevel(profile.level) }} XP до ур. {{ (profile.level || 1) + 1 }}</span>
+                            </div>
+                            <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div class="h-full level-progress rounded-full transition-all" :style="{width: xpProgress + '%'}"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <h3 class="font-bold text-lg mb-4 dark:text-white">Действия</h3>
+                        <div class="space-y-3">
+                            <a href="/settings.html" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                                    <i class="fas fa-cog"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-medium text-sm dark:text-white">Настройки</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">Изменить профиль</div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </a>
+                            
+                            <a href="/inventory.html" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                <div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                                    <i class="fas fa-box"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-medium text-sm dark:text-white">Инвентарь</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ profile.inventory?.length || 0 }} предметов</div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </a>
+                            
+                            <a href="/friends.html" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-medium text-sm dark:text-white">Друзья</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ profile.friends?.length || 0 }} друзей</div>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- VIP Status -->
+                    <div v-if="profile.vip" class="rounded-2xl vip-gradient p-6 text-white relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-crown text-yellow-300 text-xl"></i>
+                                <span class="font-bold text-lg">VIP активен</span>
+                            </div>
+                            <p class="text-white/90 text-sm">У вас есть доступ ко всем режимам игры, приватным комнатам и кредитам.</p>
+                            <div class="mt-3 text-xs text-white/70">Бесплатно навсегда</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div v-else-if="isAuthenticated" class="flex items-center justify-center py-20">
+                <div class="spinner w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            isAuthenticated: false,
+            showAuthModal: false,
+            authMode: 'login',
+            authData: { nick: '', email: '', password: '' },
+            authError: '',
+            isDark: false,
+            showMenu: false,
+            user: null,
+            profile: null,
+            token: localStorage.getItem('token'),
+            activeTab: 'overview',
+            recentGames: []
+        }
+    },
+    
+    computed: {
+        xpProgress() {
+            if (!this.profile) return 0;
+            const currentLevel = this.profile.level || 1;
+            const currentXp = this.profile.xp || 0;
+            const xpForNext = this.xpToNextLevel(currentLevel);
+            const xpForCurrent = this.xpForLevel(currentLevel);
+            const progress = ((currentXp - xpForCurrent) / (xpForNext - xpForCurrent)) * 100;
+            return Math.max(0, Math.min(100, progress));
+        }
+    },
+    
+    async mounted() {
+        this.isDark = document.documentElement.classList.contains('dark');
+        
+        if (this.token) {
+            await this.loadUser();
+            await this.loadProfile();
+        }
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.relative')) {
+                this.showMenu = false;
+            }
+        });
+    },
+    
+    methods: {
+        getRankName(level) {
+            const ranks = {
+                1: 'Рекрут',
+                2: 'Солдат',
+                3: 'Сержант',
+                4: 'Лейтенант',
+                5: 'Капитан',
+                6: 'Майор',
+                7: 'Подполковник',
+                8: 'Полковник',
+                9: 'Генерал',
+                10: 'Маршал'
+            };
+            return ranks[level] || 'Легенда';
+        },
+        
+        xpForLevel(level) {
+            return Math.floor(100 * Math.pow(1.5, level - 1));
+        },
+        
+        xpToNextLevel(currentLevel) {
+            return this.xpForLevel(currentLevel + 1);
+        },
+        
+        formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+        },
+        
+        viewProfile(userId) {
+            if (userId === this.user?._id) return;
+            window.location.href = `/profile.html?id=${userId}`;
+        },
+        
+        async loadUser() {
+            try {
+                const res = await fetch('/api/user/me', {
+                    headers: { 'Authorization': 'Bearer ' + this.token }
+                });
+                if (res.ok) {
+                    this.user = await res.json();
+                    this.isAuthenticated = true;
+                } else {
+                    localStorage.removeItem('token');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        },
+        
+        async loadProfile() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const userId = urlParams.get('id');
+                
+                let res;
+                if (userId) {
+                    res = await fetch(`/api/user/${userId}`, {
+                        headers: { 'Authorization': 'Bearer ' + this.token }
+                    });
+                } else {
+                    res = await fetch('/api/user/me', {
+                        headers: { 'Authorization': 'Bearer ' + this.token }
+                    });
+                }
+                
+                if (res.ok) {
+                    this.profile = await res.json();
+                    // Загружаем последние игры (заглушка, можно заменить на реальный API)
+                    this.recentGames = [];
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        },
+        
+        openAuthModal() {
+            this.showAuthModal = true;
+            this.authError = '';
+        },
+        
+        closeAuthModal() {
+            this.showAuthModal = false;
+            this.authData = { nick: '', email: '', password: '' };
+            this.authError = '';
+        },
+        
+        async handleAuth() {
+            try {
+                const endpoint = this.authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.authData)
+                });
+                
+                const data = await res.json();
+                if (data.error) {
+                    this.authError = data.error;
+                    return;
+                }
+                
+                this.token = data.token;
+                localStorage.setItem('token', this.token);
+                this.user = data.user;
+                this.isAuthenticated = true;
+                this.showAuthModal = false;
+                this.authError = '';
+                this.authData = { nick: '', email: '', password: '' };
+                
+                await this.loadProfile();
+            } catch (err) {
+                this.authError = 'Ошибка соединения';
+            }
+        },
+        
+        toggleTheme() {
+            this.isDark = !this.isDark;
+            if (this.isDark) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+        },
+        
+        logout() {
+            localStorage.removeItem('token');
+            this.isAuthenticated = false;
+            this.user = null;
+            this.profile = null;
+            this.token = null;
+            this.showMenu = false;
+            window.location.href = '/';
+        }
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

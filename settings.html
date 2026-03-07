@@ -73,7 +73,6 @@
             background: #22c55e;
             color: white;
         }
-        /* Toggle Switch */
         .toggle-switch {
             position: relative;
             width: 44px;
@@ -123,18 +122,23 @@
         .toggle-switch.large input:checked + .toggle-slider:before {
             transform: translateX(22px);
         }
+        .notification-permission-btn {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
 
 <div id="app">
-    <!-- Auth Modal -->
     <div v-if="showAuthModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
         <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md shadow-2xl relative">
             <button @click="closeAuthModal" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
                 <i class="fas fa-times"></i>
             </button>
-            
             <div class="text-center mb-6">
                 <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-2xl">
                     <i class="fas fa-crown"></i>
@@ -142,28 +146,21 @@
                 <h2 class="text-2xl font-bold mb-2 dark:text-white">Monopoly One</h2>
                 <p class="text-gray-500 dark:text-gray-400">Войдите или создайте аккаунт</p>
             </div>
-            
             <div class="space-y-4">
                 <div v-if="authMode === 'register'">
-                    <input v-model="authData.nick" type="text" placeholder="Придумайте ник" 
-                           class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                    <input v-model="authData.nick" type="text" placeholder="Придумайте ник" class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
                 </div>
-                <input v-model="authData.email" type="email" placeholder="Email" 
-                       class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
-                <input v-model="authData.password" type="password" placeholder="Пароль" 
-                       class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
-                
+                <input v-model="authData.email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                <input v-model="authData.password" type="password" placeholder="Пароль" class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
                 <button @click="handleAuth" class="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors">
                     {{ authMode === 'login' ? 'Войти' : 'Создать аккаунт' }}
                 </button>
-                
                 <p class="text-center text-sm text-gray-500 dark:text-gray-400">
                     {{ authMode === 'login' ? 'Нет аккаунта?' : 'Уже есть аккаунт?' }}
                     <button @click="authMode = authMode === 'login' ? 'register' : 'login'" class="text-green-500 hover:underline ml-1">
                         {{ authMode === 'login' ? 'Зарегистрироваться' : 'Войти' }}
                     </button>
                 </p>
-                
                 <div v-if="authError" class="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm text-center">
                     {{ authError }}
                 </div>
@@ -171,7 +168,6 @@
         </div>
     </div>
 
-    <!-- Crop Modal -->
     <div v-if="showCropModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 crop-modal">
         <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <h3 class="text-lg font-bold mb-4 dark:text-white">Обрезать аватар</h3>
@@ -179,17 +175,25 @@
                 <img ref="cropImage" :src="cropImageSrc" class="max-w-full rounded-lg">
             </div>
             <div class="flex gap-3">
-                <button @click="showCropModal = false" class="flex-1 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors dark:text-white">
-                    Отмена
-                </button>
-                <button @click="saveCroppedAvatar" class="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                    Сохранить
-                </button>
+                <button @click="showCropModal = false" class="flex-1 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors dark:text-white">Отмена</button>
+                <button @click="saveCroppedAvatar" class="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">Сохранить</button>
             </div>
         </div>
     </div>
 
-    <!-- Header -->
+    <div v-if="showTestNotification" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div class="text-center">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <i class="fas fa-bell text-green-500 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2 dark:text-white">Тестовое уведомление</h3>
+                <p class="text-gray-500 dark:text-gray-400 mb-4">Если вы видите это уведомление, значит всё работает!</p>
+                <button @click="showTestNotification = false" class="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
     <header class="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
@@ -199,22 +203,16 @@
                     </div>
                     <span class="text-xl font-bold gradient-text">Monopoly One</span>
                 </a>
-
                 <nav class="hidden md:flex items-center gap-6">
                     <a href="/" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Поиск игр</a>
                     <a href="/friends.html" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Друзья</a>
                     <a href="/inventory.html" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Инвентарь</a>
                 </nav>
-
                 <div class="flex items-center gap-3">
                     <button @click="toggleTheme" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                         <i class="fas" :class="isDark ? 'fa-sun text-yellow-400' : 'fa-moon text-gray-600'"></i>
                     </button>
-                    
-                    <button v-if="!isAuthenticated" @click="openAuthModal" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">
-                        Войти
-                    </button>
-                    
+                    <button v-if="!isAuthenticated" @click="openAuthModal" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">Войти</button>
                     <div v-if="user" class="relative">
                         <button @click="showMenu = !showMenu" class="flex items-center gap-3 p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
                             <img :src="user.avatar" class="w-8 h-8 rounded-lg object-cover">
@@ -222,7 +220,6 @@
                             <i v-if="user.vip" class="fas fa-crown text-yellow-400 text-xs" title="VIP"></i>
                             <i class="fas fa-chevron-down text-xs text-gray-400"></i>
                         </button>
-                        
                         <div v-if="showMenu" class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
                             <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
                                 <p class="font-semibold dark:text-white">{{ user.nick }}</p>
@@ -240,7 +237,6 @@
         </div>
     </header>
 
-    <!-- Main Content -->
     <main class="pt-20 pb-12 min-h-screen">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div v-if="!isAuthenticated" class="text-center py-20">
@@ -249,138 +245,73 @@
                 </div>
                 <h2 class="text-2xl font-bold mb-2 dark:text-white">Требуется авторизация</h2>
                 <p class="text-gray-500 dark:text-gray-400 mb-6">Войдите, чтобы изменить настройки</p>
-                <button @click="openAuthModal" class="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors">
-                    Войти в аккаунт
-                </button>
+                <button @click="openAuthModal" class="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors">Войти в аккаунт</button>
             </div>
 
             <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <!-- Settings Navigation -->
                 <div class="lg:col-span-1">
                     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
                         <div class="p-4 border-b border-gray-200 dark:border-gray-700">
                             <h3 class="font-bold text-lg dark:text-white">Настройки</h3>
                         </div>
                         <nav class="py-2">
-                            <button @click="activeSection = 'profile'" :class="{'active': activeSection === 'profile'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
-                                <i class="fas fa-user mr-3"></i>Профиль
-                            </button>
-                            <button @click="activeSection = 'security'" :class="{'active': activeSection === 'security'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
-                                <i class="fas fa-shield-alt mr-3"></i>Безопасность
-                            </button>
-                            <button @click="activeSection = 'social'" :class="{'active': activeSection === 'social'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
-                                <i class="fas fa-share-alt mr-3"></i>Социальные сети
-                            </button>
-                            <button @click="activeSection = 'browser'" :class="{'active': activeSection === 'browser'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
-                                <i class="fas fa-globe mr-3"></i>Браузер
-                            </button>
+                            <button @click="activeSection = 'profile'" :class="{'active': activeSection === 'profile'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"><i class="fas fa-user mr-3"></i>Профиль</button>
+                            <button @click="activeSection = 'security'" :class="{'active': activeSection === 'security'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"><i class="fas fa-shield-alt mr-3"></i>Безопасность</button>
+                            <button @click="activeSection = 'social'" :class="{'active': activeSection === 'social'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"><i class="fas fa-share-alt mr-3"></i>Социальные сети</button>
+                            <button @click="activeSection = 'browser'" :class="{'active': activeSection === 'browser'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"><i class="fas fa-globe mr-3"></i>Браузер</button>
                         </nav>
                     </div>
                 </div>
 
-                <!-- Settings Content -->
                 <div class="lg:col-span-3">
-                    <!-- Profile Section -->
                     <div v-if="activeSection === 'profile'" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
                         <h2 class="text-2xl font-bold mb-6 dark:text-white">Профиль</h2>
-                        
                         <div class="flex flex-col md:flex-row gap-8">
-                            <!-- Avatar Upload -->
                             <div class="flex-shrink-0">
                                 <div class="avatar-upload w-32 h-32 md:w-40 md:h-40 rounded-full relative" @click="triggerFileInput">
                                     <img :src="previewAvatar || user?.avatar" class="w-full h-full rounded-full object-cover border-4 border-green-500">
-                                    <div class="avatar-overlay">
-                                        <i class="fas fa-camera text-white text-2xl"></i>
-                                    </div>
-                                    <input 
-                                        ref="fileInput" 
-                                        type="file" 
-                                        accept="image/*" 
-                                        class="hidden" 
-                                        @change="handleFileSelect"
-                                    >
+                                    <div class="avatar-overlay"><i class="fas fa-camera text-white text-2xl"></i></div>
+                                    <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="handleFileSelect">
                                 </div>
                                 <p class="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">Нажмите чтобы изменить</p>
-                                
                                 <div v-if="uploadProgress > 0 && uploadProgress < 100" class="mt-2">
                                     <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                         <div class="h-full bg-green-500 rounded-full transition-all" :style="{width: uploadProgress + '%'}"></div>
                                     </div>
                                     <p class="text-xs text-center text-gray-500 mt-1">{{ uploadProgress }}%</p>
                                 </div>
-                                
-                                <div v-if="uploadError" class="mt-2 p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-xs text-center">
-                                    {{ uploadError }}
-                                </div>
+                                <div v-if="uploadError" class="mt-2 p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-xs text-center">{{ uploadError }}</div>
                             </div>
-
-                            <!-- Profile Form -->
                             <div class="flex-1 space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ник</label>
-                                    <input 
-                                        v-model="profileForm.nick" 
-                                        type="text" 
-                                        class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white"
-                                    >
+                                    <input v-model="profileForm.nick" type="text" class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
                                 </div>
-                                
-                                <!-- Profile Link with ID -->
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Адрес профиля 
-                                        <span class="text-xs text-gray-400 font-normal">(уникальный ID)</span>
-                                    </label>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Адрес профиля <span class="text-xs text-gray-400 font-normal">(уникальный ID)</span></label>
                                     <div class="flex items-stretch">
-                                        <span class="px-4 py-3 bg-gray-200 dark:bg-gray-600 rounded-l-xl text-gray-600 dark:text-gray-400 text-sm flex items-center">
-                                            /profile.html?id=
-                                        </span>
-                                        <input 
-                                            :value="user?._id" 
-                                            disabled
-                                            type="text" 
-                                            class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 dark:text-gray-300 text-gray-600 profile-link"
-                                        >
-                                        <button 
-                                            @click="copyProfileLink" 
-                                            :class="{'copied': copied}"
-                                            class="copy-btn px-4 py-3 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-r-xl text-gray-600 dark:text-gray-400 transition-colors"
-                                            title="Копировать ссылку"
-                                        >
-                                            <i :class="copied ? 'fas fa-check' : 'fas fa-copy'"></i>
-                                        </button>
+                                        <span class="px-4 py-3 bg-gray-200 dark:bg-gray-600 rounded-l-xl text-gray-600 dark:text-gray-400 text-sm flex items-center">/profile.html?id=</span>
+                                        <input :value="user?._id" disabled type="text" class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 dark:text-gray-300 text-gray-600 profile-link">
+                                        <button @click="copyProfileLink" :class="{'copied': copied}" class="copy-btn px-4 py-3 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-r-xl text-gray-600 dark:text-gray-400 transition-colors" title="Копировать ссылку"><i :class="copied ? 'fas fa-check' : 'fas fa-copy'"></i></button>
                                     </div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                        Поделитесь этой ссылкой, чтобы другие могли найти ваш профиль
-                                    </p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Поделитесь этой ссылкой, чтобы другие могли найти ваш профиль</p>
                                 </div>
-                                
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Пол</label>
-                                    <select 
-                                        v-model="profileForm.gender"
-                                        class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white"
-                                    >
+                                    <select v-model="profileForm.gender" class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
                                         <option value="male">Мужской</option>
                                         <option value="female">Женский</option>
                                     </select>
                                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Вы можете указать свой пол, чтобы игра использовала правильную форму глаголов и прилагательных.</p>
                                 </div>
-
                                 <div class="pt-4">
-                                    <button 
-                                        @click="saveProfile" 
-                                        :disabled="saving"
-                                        class="px-6 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white rounded-xl font-semibold transition-colors flex items-center gap-2"
-                                    >
+                                    <button @click="saveProfile" :disabled="saving" class="px-6 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white rounded-xl font-semibold transition-colors flex items-center gap-2">
                                         <i v-if="saving" class="fas fa-spinner fa-spin"></i>
                                         {{ saving ? 'Сохранение...' : 'Сохранить изменения' }}
                                     </button>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Email Section -->
                         <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
                             <h3 class="text-xl font-bold mb-4 dark:text-white">Электронная почта</h3>
                             <div>
@@ -393,114 +324,106 @@
                         </div>
                     </div>
 
-                    <!-- Security Section -->
                     <div v-if="activeSection === 'security'" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
                         <h2 class="text-2xl font-bold mb-6 dark:text-white">Изменение пароля</h2>
-                        
                         <div class="space-y-6 max-w-2xl">
                             <div>
                                 <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">Старый пароль</label>
-                                <div class="text-gray-400 dark:text-gray-500 text-sm mb-4">
-                                    Пароль не установлен
-                                </div>
+                                <div class="text-gray-400 dark:text-gray-500 text-sm mb-4">Пароль не установлен</div>
                             </div>
-
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm text-gray-500 dark:text-gray-400 mb-2">Новый пароль</label>
-                                    <input 
-                                        v-model="passwordForm.newPassword"
-                                        type="password" 
-                                        class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-transparent dark:text-white"
-                                    >
+                                    <input v-model="passwordForm.newPassword" type="password" class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-transparent dark:text-white">
                                 </div>
                                 <div>
                                     <label class="block text-sm text-gray-500 dark:text-gray-400 mb-2">Подтвердите новый пароль</label>
-                                    <input 
-                                        v-model="passwordForm.confirmPassword"
-                                        type="password" 
-                                        class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-transparent dark:text-white"
-                                    >
+                                    <input v-model="passwordForm.confirmPassword" type="password" class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-transparent dark:text-white">
                                 </div>
                             </div>
-
-                            <div v-if="passwordError" class="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm">
-                                {{ passwordError }}
-                            </div>
-
-                            <div v-if="passwordSuccess" class="p-3 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg text-sm">
-                                {{ passwordSuccess }}
-                            </div>
-
-                            <button 
-                                @click="changePassword"
-                                :disabled="changingPassword"
-                                class="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-500 text-white rounded-xl font-medium transition-colors"
-                            >
-                                <i v-if="changingPassword" class="fas fa-spinner fa-spin mr-2"></i>
-                                Изменить пароль
+                            <div v-if="passwordError" class="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm">{{ passwordError }}</div>
+                            <div v-if="passwordSuccess" class="p-3 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg text-sm">{{ passwordSuccess }}</div>
+                            <button @click="changePassword" :disabled="changingPassword" class="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-500 text-white rounded-xl font-medium transition-colors">
+                                <i v-if="changingPassword" class="fas fa-spinner fa-spin mr-2"></i>Изменить пароль
                             </button>
                         </div>
                     </div>
 
-                    <!-- Social Section -->
                     <div v-if="activeSection === 'social'" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
                         <h2 class="text-2xl font-bold mb-4 dark:text-white">Социальные сети</h2>
                         <p class="text-gray-500 dark:text-gray-400">Этот раздел находится в разработке.</p>
                     </div>
 
-                    <!-- Browser Section -->
                     <div v-if="activeSection === 'browser'" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
                         <h2 class="text-2xl font-bold mb-6 dark:text-white">Уведомления</h2>
-                        
+                        <div v-if="notificationPermission === 'default'" class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-info-circle text-blue-500 text-xl"></i>
+                                <div class="flex-1">
+                                    <div class="font-medium text-blue-800 dark:text-blue-300">Разрешите уведомления</div>
+                                    <div class="text-sm text-blue-600 dark:text-blue-400">Чтобы получать уведомления, нажмите кнопку ниже и разрешите доступ в браузере.</div>
+                                </div>
+                                <button @click="requestNotificationPermission" class="notification-permission-btn px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">Разрешить</button>
+                            </div>
+                        </div>
+                        <div v-else-if="notificationPermission === 'denied'" class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                                <div>
+                                    <div class="font-medium text-red-800 dark:text-red-300">Уведомления заблокированы</div>
+                                    <div class="text-sm text-red-600 dark:text-red-400">Разрешите уведомления в настройках браузера, чтобы использовать эту функцию.</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else-if="notificationPermission === 'granted'" class="mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-check-circle text-green-500 text-xl"></i>
+                                <div class="flex-1">
+                                    <div class="font-medium text-green-800 dark:text-green-300">Уведомления разрешены</div>
+                                    <div class="text-sm text-green-600 dark:text-green-400">Вы будете получать уведомления, даже когда сайт в фоне.</div>
+                                </div>
+                                <button @click="sendTestNotification" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">Тест</button>
+                            </div>
+                        </div>
                         <div class="space-y-6">
-                            <!-- Browser Notifications -->
                             <div class="flex items-center justify-between">
                                 <div>
                                     <div class="font-medium dark:text-white">Использовать браузерные уведомления</div>
-                                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                        Пока сайт находится в фоне, вы будете получать браузерные уведомления, чтобы не пропустить ничего важного.
-                                    </div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">Пока сайт находится в фоне, вы будете получать браузерные уведомления, чтобы не пропустить ничего важного.</div>
                                 </div>
                                 <label class="toggle-switch">
-                                    <input type="checkbox" v-model="notifications.browser">
+                                    <input type="checkbox" v-model="notifications.browser" @change="onBrowserToggle">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-
-                            <!-- Sound Notifications -->
                             <div class="flex items-center justify-between">
                                 <div class="font-medium dark:text-white">Включить звуки уведомлений</div>
                                 <label class="toggle-switch large">
-                                    <input type="checkbox" v-model="notifications.sound">
+                                    <input type="checkbox" v-model="notifications.sound" @change="playTestSound">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-
                             <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
                                 <h3 class="font-bold text-lg mb-4 dark:text-white">Категории уведомлений</h3>
-                                
                                 <div class="space-y-4">
                                     <div class="flex items-center justify-between">
                                         <div class="font-medium dark:text-white">Приглашения в матчи</div>
                                         <label class="toggle-switch large">
-                                            <input type="checkbox" v-model="notifications.categories.matches">
+                                            <input type="checkbox" v-model="notifications.categories.matches" @change="playTestSound">
                                             <span class="toggle-slider"></span>
                                         </label>
                                     </div>
-
                                     <div class="flex items-center justify-between">
                                         <div class="font-medium dark:text-white">Заявки в друзья</div>
                                         <label class="toggle-switch large">
-                                            <input type="checkbox" v-model="notifications.categories.friends">
+                                            <input type="checkbox" v-model="notifications.categories.friends" @change="playTestSound">
                                             <span class="toggle-slider"></span>
                                         </label>
                                     </div>
-
                                     <div class="flex items-center justify-between">
                                         <div class="font-medium dark:text-white">Предложения обмена</div>
                                         <label class="toggle-switch large">
-                                            <input type="checkbox" v-model="notifications.categories.trades">
+                                            <input type="checkbox" v-model="notifications.categories.trades" @change="playTestSound">
                                             <span class="toggle-slider"></span>
                                         </label>
                                     </div>
@@ -531,10 +454,7 @@ createApp({
             user: null,
             token: localStorage.getItem('token'),
             activeSection: 'profile',
-            profileForm: {
-                nick: '',
-                gender: 'male'
-            },
+            profileForm: { nick: '', gender: 'male' },
             saving: false,
             uploadProgress: 0,
             uploadError: '',
@@ -543,51 +463,30 @@ createApp({
             cropImageSrc: null,
             selectedFile: null,
             copied: false,
-            // Password form
-            passwordForm: {
-                newPassword: '',
-                confirmPassword: ''
-            },
+            showTestNotification: false,
+            notificationPermission: 'default',
+            audioContext: null,
+            passwordForm: { newPassword: '', confirmPassword: '' },
             changingPassword: false,
             passwordError: '',
             passwordSuccess: '',
-            // Notifications
             notifications: {
                 browser: false,
                 sound: true,
-                categories: {
-                    matches: true,
-                    friends: true,
-                    trades: true
-                }
+                categories: { matches: true, friends: true, trades: true }
             }
-        }
-    },
-    
-    computed: {
-        sectionTitle() {
-            const titles = {
-                'security': 'Безопасность',
-                'social': 'Социальные сети',
-                'browser': 'Браузер'
-            };
-            return titles[this.activeSection] || 'Настройки';
-        },
-        
-        profileLink() {
-            if (!this.user?._id) return '';
-            return `${window.location.origin}/profile.html?id=${this.user._id}`;
         }
     },
     
     async mounted() {
         this.isDark = document.documentElement.classList.contains('dark');
-        
+        if ('Notification' in window) {
+            this.notificationPermission = Notification.permission;
+        }
         if (this.token) {
             await this.loadUser();
             this.loadNotificationSettings();
         }
-        
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.relative')) {
                 this.showMenu = false;
@@ -596,6 +495,108 @@ createApp({
     },
     
     methods: {
+        playTestSound() {
+            if (!this.notifications.sound) return;
+            try {
+                const audio = new Audio('/sounds/notification.mp3');
+                audio.volume = 0.5;
+                audio.play().catch(err => {
+                    console.log('Audio play failed:', err);
+                    this.playFallbackSound();
+                });
+            } catch (err) {
+                console.error('Sound play error:', err);
+                this.playFallbackSound();
+            }
+        },
+
+        playFallbackSound() {
+            try {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.5);
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + 0.5);
+                setTimeout(() => {
+                    const osc2 = this.audioContext.createOscillator();
+                    const gain2 = this.audioContext.createGain();
+                    osc2.connect(gain2);
+                    gain2.connect(this.audioContext.destination);
+                    osc2.frequency.value = 1200;
+                    osc2.type = 'sine';
+                    gain2.gain.setValueAtTime(0.2, this.audioContext.currentTime);
+                    gain2.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+                    osc2.start(this.audioContext.currentTime);
+                    osc2.stop(this.audioContext.currentTime + 0.3);
+                }, 100);
+            } catch (err) {
+                console.error('Fallback sound error:', err);
+            }
+        },
+
+        async requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                alert('Ваш браузер не поддерживает уведомления');
+                return;
+            }
+            try {
+                const permission = await Notification.requestPermission();
+                this.notificationPermission = permission;
+                if (permission === 'granted') {
+                    this.notifications.browser = true;
+                    this.saveNotificationSettings();
+                    setTimeout(() => {
+                        this.sendTestNotification();
+                    }, 1000);
+                }
+            } catch (err) {
+                console.error('Notification permission error:', err);
+            }
+        },
+
+        sendTestNotification() {
+            if (!('Notification' in window) || Notification.permission !== 'granted') {
+                this.showTestNotification = true;
+                return;
+            }
+            try {
+                const notification = new Notification('Monopoly One', {
+                    body: 'Тестовое уведомление! Теперь вы будете получать уведомления о событиях.',
+                    icon: '/default-avatar.png',
+                    badge: '/default-avatar.png',
+                    tag: 'test-notification',
+                    requireInteraction: false
+                });
+                notification.onclick = () => {
+                    window.focus();
+                    notification.close();
+                };
+                this.playTestSound();
+            } catch (err) {
+                console.error('Notification error:', err);
+                this.showTestNotification = true;
+            }
+        },
+
+        async onBrowserToggle() {
+            if (this.notifications.browser) {
+                if (Notification.permission !== 'granted') {
+                    await this.requestNotificationPermission();
+                } else {
+                    this.sendTestNotification();
+                }
+            }
+            this.saveNotificationSettings();
+        },
+
         maskEmail(email) {
             if (!email) return '';
             const [name, domain] = email.split('@');
@@ -604,15 +605,15 @@ createApp({
             const maskedDomain = domainName.charAt(0) + '*'.repeat(domainName.length - 1);
             return `${maskedName}@${maskedDomain}.${tld}`;
         },
-        
+
         async copyProfileLink() {
             try {
-                await navigator.clipboard.writeText(this.profileLink);
+                await navigator.clipboard.writeText(`${window.location.origin}/profile.html?id=${this.user?._id}`);
                 this.copied = true;
                 setTimeout(() => this.copied = false, 2000);
             } catch (err) {
                 const textArea = document.createElement('textarea');
-                textArea.value = this.profileLink;
+                textArea.value = `${window.location.origin}/profile.html?id=${this.user?._id}`;
                 document.body.appendChild(textArea);
                 textArea.select();
                 document.execCommand('copy');
@@ -621,28 +622,24 @@ createApp({
                 setTimeout(() => this.copied = false, 2000);
             }
         },
-        
+
         triggerFileInput() {
             this.$refs.fileInput.click();
         },
-        
+
         handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
-            
             if (file.size > 5 * 1024 * 1024) {
                 this.uploadError = 'Файл слишком большой (макс. 5MB)';
                 return;
             }
-            
             if (!file.type.startsWith('image/')) {
                 this.uploadError = 'Только изображения';
                 return;
             }
-            
             this.selectedFile = file;
             this.uploadError = '';
-            
             const reader = new FileReader();
             reader.onload = (e) => {
                 this.cropImageSrc = e.target.result;
@@ -650,36 +647,29 @@ createApp({
             };
             reader.readAsDataURL(file);
         },
-        
+
         async saveCroppedAvatar() {
             if (!this.selectedFile) return;
-            
             this.showCropModal = false;
             this.uploadProgress = 0;
-            
             const formData = new FormData();
             formData.append('avatar', this.selectedFile);
-            
             try {
                 const xhr = new XMLHttpRequest();
-                
                 xhr.upload.addEventListener('progress', (e) => {
                     if (e.lengthComputable) {
                         this.uploadProgress = Math.round((e.loaded / e.total) * 100);
                     }
                 });
-                
                 xhr.addEventListener('load', () => {
                     if (xhr.status === 200) {
                         const response = JSON.parse(xhr.responseText);
                         this.user.avatar = response.avatar;
                         this.previewAvatar = null;
                         this.uploadProgress = 0;
-                        
                         const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
                         savedUser.avatar = response.avatar;
                         localStorage.setItem('user', JSON.stringify(savedUser));
-                        
                         alert('Аватар успешно обновлен!');
                     } else {
                         const error = JSON.parse(xhr.responseText);
@@ -687,22 +677,19 @@ createApp({
                         this.uploadProgress = 0;
                     }
                 });
-                
                 xhr.addEventListener('error', () => {
                     this.uploadError = 'Ошибка соединения';
                     this.uploadProgress = 0;
                 });
-                
                 xhr.open('POST', '/api/user/avatar');
                 xhr.setRequestHeader('Authorization', 'Bearer ' + this.token);
                 xhr.send(formData);
-                
             } catch (err) {
                 this.uploadError = 'Ошибка загрузки';
                 this.uploadProgress = 0;
             }
         },
-        
+
         async loadUser() {
             try {
                 const res = await fetch('/api/user/me', {
@@ -719,7 +706,7 @@ createApp({
                 console.error(err);
             }
         },
-        
+
         async saveProfile() {
             this.saving = true;
             try {
@@ -731,7 +718,6 @@ createApp({
                     },
                     body: JSON.stringify(this.profileForm)
                 });
-                
                 if (res.ok) {
                     const updated = await res.json();
                     this.user.nick = updated.nick;
@@ -742,28 +728,23 @@ createApp({
             }
             this.saving = false;
         },
-        
+
         async changePassword() {
             this.passwordError = '';
             this.passwordSuccess = '';
-            
             if (!this.passwordForm.newPassword || !this.passwordForm.confirmPassword) {
                 this.passwordError = 'Заполните все поля';
                 return;
             }
-            
             if (this.passwordForm.newPassword.length < 6) {
                 this.passwordError = 'Пароль должен быть не менее 6 символов';
                 return;
             }
-            
             if (this.passwordForm.newPassword !== this.passwordForm.confirmPassword) {
                 this.passwordError = 'Пароли не совпадают';
                 return;
             }
-            
             this.changingPassword = true;
-            
             try {
                 const res = await fetch('/api/user/password', {
                     method: 'PUT',
@@ -771,11 +752,8 @@ createApp({
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + this.token
                     },
-                    body: JSON.stringify({
-                        newPassword: this.passwordForm.newPassword
-                    })
+                    body: JSON.stringify({ newPassword: this.passwordForm.newPassword })
                 });
-                
                 if (res.ok) {
                     this.passwordSuccess = 'Пароль успешно изменен';
                     this.passwordForm.newPassword = '';
@@ -787,32 +765,31 @@ createApp({
             } catch (err) {
                 this.passwordError = 'Ошибка соединения';
             }
-            
             this.changingPassword = false;
         },
-        
+
         loadNotificationSettings() {
             const saved = localStorage.getItem('notificationSettings');
             if (saved) {
                 this.notifications = JSON.parse(saved);
             }
         },
-        
+
         saveNotificationSettings() {
             localStorage.setItem('notificationSettings', JSON.stringify(this.notifications));
         },
-        
+
         openAuthModal() {
             this.showAuthModal = true;
             this.authError = '';
         },
-        
+
         closeAuthModal() {
             this.showAuthModal = false;
             this.authData = { nick: '', email: '', password: '' };
             this.authError = '';
         },
-        
+
         async handleAuth() {
             try {
                 const endpoint = this.authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
@@ -821,13 +798,11 @@ createApp({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.authData)
                 });
-                
                 const data = await res.json();
                 if (data.error) {
                     this.authError = data.error;
                     return;
                 }
-                
                 this.token = data.token;
                 localStorage.setItem('token', this.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
@@ -841,7 +816,7 @@ createApp({
                 this.authError = 'Ошибка соединения';
             }
         },
-        
+
         toggleTheme() {
             this.isDark = !this.isDark;
             if (this.isDark) {
@@ -852,7 +827,7 @@ createApp({
                 localStorage.setItem('theme', 'light');
             }
         },
-        
+
         logout() {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
@@ -863,7 +838,7 @@ createApp({
             window.location.href = '/';
         }
     },
-    
+
     watch: {
         notifications: {
             deep: true,

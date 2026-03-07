@@ -70,7 +70,7 @@ const connectDB = async () => {
 
 connectDB();
 
-// Модели - ИСПРАВЛЕНО
+// Модели
 const UserSchema = new mongoose.Schema({
     nick: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
@@ -152,7 +152,7 @@ app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// API Роуты - ИСПРАВЛЕНА РЕГИСТРАЦИЯ
+// API Роуты - РЕГИСТРАЦИЯ
 app.post('/api/auth/register', async (req, res) => {
     try {
         console.log('=== REGISTER ATTEMPT ===');
@@ -165,7 +165,6 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ error: 'All fields required' });
         }
         
-        // Проверка длины пароля
         if (password.length < 6) {
             return res.status(400).json({ error: 'Password must be at least 6 characters' });
         }
@@ -178,7 +177,6 @@ app.post('/api/auth/register', async (req, res) => {
         
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        // Упрощенный инвентарь - пустой массив для начала
         const starterInventory = [];
         
         const user = new User({
@@ -252,7 +250,24 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/user/me', authMiddleware, async (req, res) => {
     try {
-        const user = await User.findById(req.userId).populate('friends', 'nick avatar online');
+        const user = await User.findById(req.userId)
+            .populate('friends', 'nick avatar online lastSeen')
+            .select('-password');
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Получение профиля пользователя по ID
+app.get('/api/user/:id', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id)
+            .select('nick avatar level xp vip wins games friends inventory')
+            .populate('friends', 'nick avatar online lastSeen');
+        
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        
         res.json(user);
     } catch (err) {
         res.status(500).json({ error: err.message });

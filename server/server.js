@@ -70,7 +70,7 @@ const connectDB = async () => {
 
 connectDB();
 
-// Модели
+// Модели - ИСПРАВЛЕНО
 const UserSchema = new mongoose.Schema({
     nick: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
@@ -152,7 +152,7 @@ app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// API Роуты
+// API Роуты - ИСПРАВЛЕНА РЕГИСТРАЦИЯ
 app.post('/api/auth/register', async (req, res) => {
     try {
         console.log('=== REGISTER ATTEMPT ===');
@@ -178,11 +178,8 @@ app.post('/api/auth/register', async (req, res) => {
         
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        const starterInventory = [
-            { itemId: 'case_1', name: 'Коробочка с кубиками #6', image: '/items/dice-box.png', type: 'case', equipped: false },
-            { itemId: 'brand_klm', name: 'KLM', image: '/items/klm.png', type: 'brand', equipped: true },
-            { itemId: 'brand_samsung', name: 'Samsung', image: '/items/samsung.png', type: 'brand', equipped: true }
-        ];
+        // Упрощенный инвентарь - пустой массив для начала
+        const starterInventory = [];
         
         const user = new User({
             nick,
@@ -197,7 +194,17 @@ app.post('/api/auth/register', async (req, res) => {
         console.log('User created successfully:', nick);
         
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret');
-        res.json({ token, user: { id: user._id, nick, email, avatar: user.avatar, vip: true, level: 1 } });
+        res.json({ 
+            token, 
+            user: { 
+                id: user._id, 
+                nick, 
+                email, 
+                avatar: user.avatar, 
+                vip: true, 
+                level: 1 
+            } 
+        });
     } catch (err) {
         console.error('REGISTER ERROR:', err);
         res.status(500).json({ error: err.message });

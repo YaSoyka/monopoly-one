@@ -351,6 +351,24 @@ app.put('/api/user/profile', authMiddleware, async (req, res) => {
     }
 });
 
+// Смена пароля
+app.put('/api/user/password', authMiddleware, async (req, res) => {
+    try {
+        const { newPassword } = req.body;
+        
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await User.findByIdAndUpdate(req.userId, { password: hashedPassword });
+        
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Поиск пользователей
 app.get('/api/users/search', async (req, res) => {
     try {

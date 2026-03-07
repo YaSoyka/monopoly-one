@@ -73,6 +73,56 @@
             background: #22c55e;
             color: white;
         }
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #4b5563;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #22c55e;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+        .toggle-switch.large {
+            width: 50px;
+            height: 28px;
+        }
+        .toggle-switch.large .toggle-slider:before {
+            height: 22px;
+            width: 22px;
+        }
+        .toggle-switch.large input:checked + .toggle-slider:before {
+            transform: translateX(22px);
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
@@ -218,29 +268,11 @@
                             <button @click="activeSection = 'security'" :class="{'active': activeSection === 'security'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
                                 <i class="fas fa-shield-alt mr-3"></i>Безопасность
                             </button>
-                            <button @click="activeSection = 'privacy'" :class="{'active': activeSection === 'privacy'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
-                                <i class="fas fa-lock mr-3"></i>Приватность
-                            </button>
                             <button @click="activeSection = 'social'" :class="{'active': activeSection === 'social'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
                                 <i class="fas fa-share-alt mr-3"></i>Социальные сети
                             </button>
                             <button @click="activeSection = 'browser'" :class="{'active': activeSection === 'browser'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
                                 <i class="fas fa-globe mr-3"></i>Браузер
-                            </button>
-                        </nav>
-                    </div>
-
-                    <!-- Data Section -->
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden mt-4">
-                        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-                            <h3 class="font-bold text-lg dark:text-white">Данные</h3>
-                        </div>
-                        <nav class="py-2">
-                            <button @click="activeSection = 'blacklist'" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
-                                <i class="fas fa-ban mr-3"></i>Черный список
-                            </button>
-                            <button @click="activeSection = 'notes'" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
-                                <i class="fas fa-sticky-note mr-3"></i>Заметки
                             </button>
                         </nav>
                     </div>
@@ -361,10 +393,120 @@
                         </div>
                     </div>
 
-                    <!-- Other Sections Placeholder -->
-                    <div v-else class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
-                        <h2 class="text-2xl font-bold mb-4 dark:text-white">{{ sectionTitle }}</h2>
+                    <!-- Security Section -->
+                    <div v-if="activeSection === 'security'" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <h2 class="text-2xl font-bold mb-6 dark:text-white">Изменение пароля</h2>
+                        
+                        <div class="space-y-6 max-w-2xl">
+                            <div>
+                                <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">Старый пароль</label>
+                                <div class="text-gray-400 dark:text-gray-500 text-sm mb-4">
+                                    Пароль не установлен
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm text-gray-500 dark:text-gray-400 mb-2">Новый пароль</label>
+                                    <input 
+                                        v-model="passwordForm.newPassword"
+                                        type="password" 
+                                        class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-transparent dark:text-white"
+                                    >
+                                </div>
+                                <div>
+                                    <label class="block text-sm text-gray-500 dark:text-gray-400 mb-2">Подтвердите новый пароль</label>
+                                    <input 
+                                        v-model="passwordForm.confirmPassword"
+                                        type="password" 
+                                        class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-transparent dark:text-white"
+                                    >
+                                </div>
+                            </div>
+
+                            <div v-if="passwordError" class="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm">
+                                {{ passwordError }}
+                            </div>
+
+                            <div v-if="passwordSuccess" class="p-3 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg text-sm">
+                                {{ passwordSuccess }}
+                            </div>
+
+                            <button 
+                                @click="changePassword"
+                                :disabled="changingPassword"
+                                class="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-500 text-white rounded-xl font-medium transition-colors"
+                            >
+                                <i v-if="changingPassword" class="fas fa-spinner fa-spin mr-2"></i>
+                                Изменить пароль
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Social Section -->
+                    <div v-if="activeSection === 'social'" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <h2 class="text-2xl font-bold mb-4 dark:text-white">Социальные сети</h2>
                         <p class="text-gray-500 dark:text-gray-400">Этот раздел находится в разработке.</p>
+                    </div>
+
+                    <!-- Browser Section -->
+                    <div v-if="activeSection === 'browser'" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <h2 class="text-2xl font-bold mb-6 dark:text-white">Уведомления</h2>
+                        
+                        <div class="space-y-6">
+                            <!-- Browser Notifications -->
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-medium dark:text-white">Использовать браузерные уведомления</div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                        Пока сайт находится в фоне, вы будете получать браузерные уведомления, чтобы не пропустить ничего важного.
+                                    </div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" v-model="notifications.browser">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <!-- Sound Notifications -->
+                            <div class="flex items-center justify-between">
+                                <div class="font-medium dark:text-white">Включить звуки уведомлений</div>
+                                <label class="toggle-switch large">
+                                    <input type="checkbox" v-model="notifications.sound">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                                <h3 class="font-bold text-lg mb-4 dark:text-white">Категории уведомлений</h3>
+                                
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between">
+                                        <div class="font-medium dark:text-white">Приглашения в матчи</div>
+                                        <label class="toggle-switch large">
+                                            <input type="checkbox" v-model="notifications.categories.matches">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="flex items-center justify-between">
+                                        <div class="font-medium dark:text-white">Заявки в друзья</div>
+                                        <label class="toggle-switch large">
+                                            <input type="checkbox" v-model="notifications.categories.friends">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="flex items-center justify-between">
+                                        <div class="font-medium dark:text-white">Предложения обмена</div>
+                                        <label class="toggle-switch large">
+                                            <input type="checkbox" v-model="notifications.categories.trades">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -400,7 +542,25 @@ createApp({
             showCropModal: false,
             cropImageSrc: null,
             selectedFile: null,
-            copied: false
+            copied: false,
+            // Password form
+            passwordForm: {
+                newPassword: '',
+                confirmPassword: ''
+            },
+            changingPassword: false,
+            passwordError: '',
+            passwordSuccess: '',
+            // Notifications
+            notifications: {
+                browser: false,
+                sound: true,
+                categories: {
+                    matches: true,
+                    friends: true,
+                    trades: true
+                }
+            }
         }
     },
     
@@ -408,11 +568,8 @@ createApp({
         sectionTitle() {
             const titles = {
                 'security': 'Безопасность',
-                'privacy': 'Приватность',
                 'social': 'Социальные сети',
-                'browser': 'Браузер',
-                'blacklist': 'Черный список',
-                'notes': 'Заметки'
+                'browser': 'Браузер'
             };
             return titles[this.activeSection] || 'Настройки';
         },
@@ -428,6 +585,7 @@ createApp({
         
         if (this.token) {
             await this.loadUser();
+            this.loadNotificationSettings();
         }
         
         document.addEventListener('click', (e) => {
@@ -453,7 +611,6 @@ createApp({
                 this.copied = true;
                 setTimeout(() => this.copied = false, 2000);
             } catch (err) {
-                // Fallback для старых браузеров
                 const textArea = document.createElement('textarea');
                 textArea.value = this.profileLink;
                 document.body.appendChild(textArea);
@@ -586,6 +743,65 @@ createApp({
             this.saving = false;
         },
         
+        async changePassword() {
+            this.passwordError = '';
+            this.passwordSuccess = '';
+            
+            if (!this.passwordForm.newPassword || !this.passwordForm.confirmPassword) {
+                this.passwordError = 'Заполните все поля';
+                return;
+            }
+            
+            if (this.passwordForm.newPassword.length < 6) {
+                this.passwordError = 'Пароль должен быть не менее 6 символов';
+                return;
+            }
+            
+            if (this.passwordForm.newPassword !== this.passwordForm.confirmPassword) {
+                this.passwordError = 'Пароли не совпадают';
+                return;
+            }
+            
+            this.changingPassword = true;
+            
+            try {
+                const res = await fetch('/api/user/password', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + this.token
+                    },
+                    body: JSON.stringify({
+                        newPassword: this.passwordForm.newPassword
+                    })
+                });
+                
+                if (res.ok) {
+                    this.passwordSuccess = 'Пароль успешно изменен';
+                    this.passwordForm.newPassword = '';
+                    this.passwordForm.confirmPassword = '';
+                } else {
+                    const data = await res.json();
+                    this.passwordError = data.error || 'Ошибка изменения пароля';
+                }
+            } catch (err) {
+                this.passwordError = 'Ошибка соединения';
+            }
+            
+            this.changingPassword = false;
+        },
+        
+        loadNotificationSettings() {
+            const saved = localStorage.getItem('notificationSettings');
+            if (saved) {
+                this.notifications = JSON.parse(saved);
+            }
+        },
+        
+        saveNotificationSettings() {
+            localStorage.setItem('notificationSettings', JSON.stringify(this.notifications));
+        },
+        
         openAuthModal() {
             this.showAuthModal = true;
             this.authError = '';
@@ -645,6 +861,15 @@ createApp({
             this.token = null;
             this.showMenu = false;
             window.location.href = '/';
+        }
+    },
+    
+    watch: {
+        notifications: {
+            deep: true,
+            handler() {
+                this.saveNotificationSettings();
+            }
         }
     }
 }).mount('#app');

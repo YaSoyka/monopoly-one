@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monopoly One - Настройки</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+        
+        if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .avatar-upload {
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .avatar-upload:hover .avatar-overlay {
+            opacity: 1;
+        }
+        .avatar-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border-radius: 50%;
+        }
+        .settings-nav-item {
+            transition: all 0.2s;
+        }
+        .settings-nav-item.active {
+            background: #dbeafe;
+            color: #2563eb;
+            border-left: 3px solid #2563eb;
+        }
+        .dark .settings-nav-item.active {
+            background: rgba(37, 99, 235, 0.2);
+            color: #60a5fa;
+            border-left-color: #60a5fa;
+        }
+        .crop-modal {
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+<div id="app">
+    <!-- Auth Modal -->
+    <div v-if="showAuthModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md shadow-2xl relative">
+            <button @click="closeAuthModal" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-2xl">
+                    <i class="fas fa-crown"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2 dark:text-white">Monopoly One</h2>
+                <p class="text-gray-500 dark:text-gray-400">Войдите или создайте аккаунт</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div v-if="authMode === 'register'">
+                    <input v-model="authData.nick" type="text" placeholder="Придумайте ник" 
+                           class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                </div>
+                <input v-model="authData.email" type="email" placeholder="Email" 
+                       class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                <input v-model="authData.password" type="password" placeholder="Пароль" 
+                       class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white">
+                
+                <button @click="handleAuth" class="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors">
+                    {{ authMode === 'login' ? 'Войти' : 'Создать аккаунт' }}
+                </button>
+                
+                <p class="text-center text-sm text-gray-500 dark:text-gray-400">
+                    {{ authMode === 'login' ? 'Нет аккаунта?' : 'Уже есть аккаунт?' }}
+                    <button @click="authMode = authMode === 'login' ? 'register' : 'login'" class="text-green-500 hover:underline ml-1">
+                        {{ authMode === 'login' ? 'Зарегистрироваться' : 'Войти' }}
+                    </button>
+                </p>
+                
+                <div v-if="authError" class="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm text-center">
+                    {{ authError }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crop Modal -->
+    <div v-if="showCropModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 crop-modal">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-lg font-bold mb-4 dark:text-white">Обрезать аватар</h3>
+            <div class="mb-4">
+                <img ref="cropImage" :src="cropImageSrc" class="max-w-full rounded-lg">
+            </div>
+            <div class="flex gap-3">
+                <button @click="showCropModal = false" class="flex-1 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors dark:text-white">
+                    Отмена
+                </button>
+                <button @click="saveCroppedAvatar" class="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                    Сохранить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="/" class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white shadow-lg shadow-green-500/30">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <span class="text-xl font-bold gradient-text">Monopoly One</span>
+                </a>
+
+                <nav class="hidden md:flex items-center gap-6">
+                    <a href="/" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Поиск игр</a>
+                    <a href="/friends.html" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Друзья</a>
+                    <a href="/inventory.html" class="text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors nav-item">Инвентарь</a>
+                </nav>
+
+                <div class="flex items-center gap-3">
+                    <button @click="toggleTheme" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <i class="fas" :class="isDark ? 'fa-sun text-yellow-400' : 'fa-moon text-gray-600'"></i>
+                    </button>
+                    
+                    <button v-if="!isAuthenticated" @click="openAuthModal" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">
+                        Войти
+                    </button>
+                    
+                    <div v-if="user" class="relative">
+                        <button @click="showMenu = !showMenu" class="flex items-center gap-3 p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
+                            <img :src="user.avatar" class="w-8 h-8 rounded-lg object-cover">
+                            <span class="hidden sm:block font-medium text-sm dark:text-white">{{ user.nick }}</span>
+                            <i v-if="user.vip" class="fas fa-crown text-yellow-400 text-xs" title="VIP"></i>
+                            <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                        </button>
+                        
+                        <div v-if="showMenu" class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
+                            <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                                <p class="font-semibold dark:text-white">{{ user.nick }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Уровень {{ user.level }} <span v-if="user.vip" class="text-yellow-500 ml-1">VIP</span></p>
+                            </div>
+                            <a href="/profile.html" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm dark:text-gray-200">Профиль</a>
+                            <a href="/settings.html" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm dark:text-gray-200 text-green-600 dark:text-green-400">Настройки</a>
+                            <div class="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
+                                <button @click="logout" class="block w-full text-left px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm">Выйти</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-20 pb-12 min-h-screen">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div v-if="!isAuthenticated" class="text-center py-20">
+                <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400 text-3xl">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2 dark:text-white">Требуется авторизация</h2>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">Войдите, чтобы изменить настройки</p>
+                <button @click="openAuthModal" class="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors">
+                    Войти в аккаунт
+                </button>
+            </div>
+
+            <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Settings Navigation -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold text-lg dark:text-white">Настройки</h3>
+                        </div>
+                        <nav class="py-2">
+                            <button @click="activeSection = 'profile'" :class="{'active': activeSection === 'profile'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
+                                <i class="fas fa-user mr-3"></i>Профиль
+                            </button>
+                            <button @click="activeSection = 'security'" :class="{'active': activeSection === 'security'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
+                                <i class="fas fa-shield-alt mr-3"></i>Безопасность
+                            </button>
+                            <button @click="activeSection = 'privacy'" :class="{'active': activeSection === 'privacy'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
+                                <i class="fas fa-lock mr-3"></i>Приватность
+                            </button>
+                            <button @click="activeSection = 'social'" :class="{'active': activeSection === 'social'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
+                                <i class="fas fa-share-alt mr-3"></i>Социальные сети
+                            </button>
+                            <button @click="activeSection = 'browser'" :class="{'active': activeSection === 'browser'}" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
+                                <i class="fas fa-globe mr-3"></i>Браузер
+                            </button>
+                        </nav>
+                    </div>
+
+                    <!-- Data Section -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden mt-4">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="font-bold text-lg dark:text-white">Данные</h3>
+                        </div>
+                        <nav class="py-2">
+                            <button @click="activeSection = 'blacklist'" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
+                                <i class="fas fa-ban mr-3"></i>Черный список
+                            </button>
+                            <button @click="activeSection = 'notes'" class="settings-nav-item w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
+                                <i class="fas fa-sticky-note mr-3"></i>Заметки
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Settings Content -->
+                <div class="lg:col-span-3">
+                    <!-- Profile Section -->
+                    <div v-if="activeSection === 'profile'" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <h2 class="text-2xl font-bold mb-6 dark:text-white">Профиль</h2>
+                        
+                        <div class="flex flex-col md:flex-row gap-8">
+                            <!-- Avatar Upload -->
+                            <div class="flex-shrink-0">
+                                <div class="avatar-upload w-32 h-32 md:w-40 md:h-40 rounded-full relative" @click="triggerFileInput">
+                                    <img :src="previewAvatar || user?.avatar" class="w-full h-full rounded-full object-cover border-4 border-green-500">
+                                    <div class="avatar-overlay">
+                                        <i class="fas fa-camera text-white text-2xl"></i>
+                                    </div>
+                                    <input 
+                                        ref="fileInput" 
+                                        type="file" 
+                                        accept="image/*" 
+                                        class="hidden" 
+                                        @change="handleFileSelect"
+                                    >
+                                </div>
+                                <p class="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">Нажмите чтобы изменить</p>
+                                
+                                <div v-if="uploadProgress > 0 && uploadProgress < 100" class="mt-2">
+                                    <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                        <div class="h-full bg-green-500 rounded-full transition-all" :style="{width: uploadProgress + '%'}"></div>
+                                    </div>
+                                    <p class="text-xs text-center text-gray-500 mt-1">{{ uploadProgress }}%</p>
+                                </div>
+                                
+                                <div v-if="uploadError" class="mt-2 p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-xs text-center">
+                                    {{ uploadError }}
+                                </div>
+                            </div>
+
+                            <!-- Profile Form -->
+                            <div class="flex-1 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ник</label>
+                                    <input 
+                                        v-model="profileForm.nick" 
+                                        type="text" 
+                                        class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white"
+                                    >
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Адрес страницы</label>
+                                    <div class="flex">
+                                        <span class="px-4 py-3 bg-gray-200 dark:bg-gray-600 rounded-l-xl text-gray-600 dark:text-gray-400 text-sm">/profile/</span>
+                                        <input 
+                                            :value="user?._id" 
+                                            disabled
+                                            type="text" 
+                                            class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 rounded-r-xl dark:text-gray-400"
+                                        >
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Пол</label>
+                                    <select 
+                                        v-model="profileForm.gender"
+                                        class="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-0 focus:ring-2 focus:ring-green-500 dark:text-white"
+                                    >
+                                        <option value="male">Мужской</option>
+                                        <option value="female">Женский</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Вы можете указать свой пол, чтобы игра использовала правильную форму глаголов и прилагательных.</p>
+                                </div>
+
+                                <div class="pt-4">
+                                    <button 
+                                        @click="saveProfile" 
+                                        :disabled="saving"
+                                        class="px-6 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white rounded-xl font-semibold transition-colors flex items-center gap-2"
+                                    >
+                                        <i v-if="saving" class="fas fa-spinner fa-spin"></i>
+                                        {{ saving ? 'Сохранение...' : 'Сохранить изменения' }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email Section -->
+                        <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+                            <h3 class="text-xl font-bold mb-4 dark:text-white">Электронная почта</h3>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Текущий адрес</label>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-gray-600 dark:text-gray-400">{{ maskEmail(user?.email) }}</span>
+                                    <button class="text-blue-500 hover:text-blue-600 text-sm">изменить</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Other Sections Placeholder -->
+                    <div v-else class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                        <h2 class="text-2xl font-bold mb-4 dark:text-white">{{ sectionTitle }}</h2>
+                        <p class="text-gray-500 dark:text-gray-400">Этот раздел находится в разработке.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            isAuthenticated: false,
+            showAuthModal: false,
+            authMode: 'login',
+            authData: { nick: '', email: '', password: '' },
+            authError: '',
+            isDark: false,
+            showMenu: false,
+            user: null,
+            token: localStorage.getItem('token'),
+            activeSection: 'profile',
+            profileForm: {
+                nick: '',
+                gender: 'male'
+            },
+            saving: false,
+            uploadProgress: 0,
+            uploadError: '',
+            previewAvatar: null,
+            showCropModal: false,
+            cropImageSrc: null,
+            selectedFile: null
+        }
+    },
+    
+    computed: {
+        sectionTitle() {
+            const titles = {
+                'security': 'Безопасность',
+                'privacy': 'Приватность',
+                'social': 'Социальные сети',
+                'browser': 'Браузер',
+                'blacklist': 'Черный список',
+                'notes': 'Заметки'
+            };
+            return titles[this.activeSection] || 'Настройки';
+        }
+    },
+    
+    async mounted() {
+        this.isDark = document.documentElement.classList.contains('dark');
+        
+        if (this.token) {
+            await this.loadUser();
+        }
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.relative')) {
+                this.showMenu = false;
+            }
+        });
+    },
+    
+    methods: {
+        maskEmail(email) {
+            if (!email) return '';
+            const [name, domain] = email.split('@');
+            const maskedName = name.charAt(0) + '*'.repeat(name.length - 2) + name.charAt(name.length - 1);
+            const [domainName, tld] = domain.split('.');
+            const maskedDomain = domainName.charAt(0) + '*'.repeat(domainName.length - 1);
+            return `${maskedName}@${maskedDomain}.${tld}`;
+        },
+        
+        triggerFileInput() {
+            this.$refs.fileInput.click();
+        },
+        
+        handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Проверка размера (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                this.uploadError = 'Файл слишком большой (макс. 5MB)';
+                return;
+            }
+            
+            // Проверка типа
+            if (!file.type.startsWith('image/')) {
+                this.uploadError = 'Только изображения';
+                return;
+            }
+            
+            this.selectedFile = file;
+            this.uploadError = '';
+            
+            // Показываем превью
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.cropImageSrc = e.target.result;
+                this.showCropModal = true;
+            };
+            reader.readAsDataURL(file);
+        },
+        
+        async saveCroppedAvatar() {
+            if (!this.selectedFile) return;
+            
+            this.showCropModal = false;
+            this.uploadProgress = 0;
+            
+            const formData = new FormData();
+            formData.append('avatar', this.selectedFile);
+            
+            try {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        this.uploadProgress = Math.round((e.loaded / e.total) * 100);
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        this.user.avatar = response.avatar;
+                        this.previewAvatar = null;
+                        this.uploadProgress = 0;
+                        
+                        // Обновляем в localStorage если нужно
+                        const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+                        savedUser.avatar = response.avatar;
+                        localStorage.setItem('user', JSON.stringify(savedUser));
+                        
+                        alert('Аватар успешно обновлен!');
+                    } else {
+                        const error = JSON.parse(xhr.responseText);
+                        this.uploadError = error.error || 'Ошибка загрузки';
+                        this.uploadProgress = 0;
+                    }
+                });
+                
+                xhr.addEventListener('error', () => {
+                    this.uploadError = 'Ошибка соединения';
+                    this.uploadProgress = 0;
+                });
+                
+                xhr.open('POST', '/api/user/avatar');
+                xhr.setRequestHeader('Authorization', 'Bearer ' + this.token);
+                xhr.send(formData);
+                
+            } catch (err) {
+                this.uploadError = 'Ошибка загрузки';
+                this.uploadProgress = 0;
+            }
+        },
+        
+        async loadUser() {
+            try {
+                const res = await fetch('/api/user/me', {
+                    headers: { 'Authorization': 'Bearer ' + this.token }
+                });
+                if (res.ok) {
+                    this.user = await res.json();
+                    this.isAuthenticated = true;
+                    this.profileForm.nick = this.user.nick;
+                } else {
+                    localStorage.removeItem('token');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        },
+        
+        async saveProfile() {
+            this.saving = true;
+            try {
+                const res = await fetch('/api/user/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + this.token
+                    },
+                    body: JSON.stringify(this.profileForm)
+                });
+                
+                if (res.ok) {
+                    const updated = await res.json();
+                    this.user.nick = updated.nick;
+                    alert('Профиль сохранен!');
+                }
+            } catch (err) {
+                alert('Ошибка сохранения');
+            }
+            this.saving = false;
+        },
+        
+        openAuthModal() {
+            this.showAuthModal = true;
+            this.authError = '';
+        },
+        
+        closeAuthModal() {
+            this.showAuthModal = false;
+            this.authData = { nick: '', email: '', password: '' };
+            this.authError = '';
+        },
+        
+        async handleAuth() {
+            try {
+                const endpoint = this.authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.authData)
+                });
+                
+                const data = await res.json();
+                if (data.error) {
+                    this.authError = data.error;
+                    return;
+                }
+                
+                this.token = data.token;
+                localStorage.setItem('token', this.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                this.user = data.user;
+                this.isAuthenticated = true;
+                this.showAuthModal = false;
+                this.authError = '';
+                this.authData = { nick: '', email: '', password: '' };
+                this.profileForm.nick = this.user.nick;
+            } catch (err) {
+                this.authError = 'Ошибка соединения';
+            }
+        },
+        
+        toggleTheme() {
+            this.isDark = !this.isDark;
+            if (this.isDark) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+        },
+        
+        logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            this.isAuthenticated = false;
+            this.user = null;
+            this.token = null;
+            this.showMenu = false;
+            window.location.href = '/';
+        }
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

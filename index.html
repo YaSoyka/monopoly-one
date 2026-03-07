@@ -1023,7 +1023,46 @@ createApp({
     }
 }).mount('#app');
 </script>
+<!-- Тестовая кнопка -->
+<div style="position: fixed; bottom: 10px; right: 10px; z-index: 9999;">
+    <button onclick="testRegister()" style="background: red; color: white; padding: 10px; border-radius: 5px; border: none; cursor: pointer;">
+        ТЕСТ РЕГИСТРАЦИИ
+    </button>
+</div>
 
+<script>
+async function testRegister() {
+    try {
+        alert("Начинаем тест регистрации...");
+        
+        const testData = {
+            nick: "testuser" + Math.floor(Math.random() * 1000),
+            email: "test" + Date.now() + "@test.com",
+            password: "123456"
+        };
+        
+        alert("Отправляем запрос на /api/auth/register с данными: " + JSON.stringify(testData));
+        
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testData)
+        });
+        
+        alert("Статус ответа: " + response.status);
+        
+        const data = await response.json();
+        alert("Ответ сервера: " + JSON.stringify(data));
+        
+        if (response.ok) {
+            alert("УСПЕХ! Токен: " + data.token);
+        } else {
+            alert("ОШИБКА: " + data.error);
+        }
+    } catch (err) {
+        alert("КРИТИЧЕСКАЯ ОШИБКА: " + err.message + "\n" + err.stack);
+    }
+}
+</script>
 </body>
 </html>
-

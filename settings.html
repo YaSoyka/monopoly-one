@@ -59,6 +59,20 @@
         .crop-modal {
             backdrop-filter: blur(8px);
         }
+        .profile-link {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.5px;
+        }
+        .copy-btn {
+            transition: all 0.2s;
+        }
+        .copy-btn:hover {
+            transform: scale(1.05);
+        }
+        .copy-btn.copied {
+            background: #22c55e;
+            color: white;
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
@@ -279,17 +293,34 @@
                                     >
                                 </div>
                                 
+                                <!-- Profile Link with ID -->
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Адрес страницы</label>
-                                    <div class="flex">
-                                        <span class="px-4 py-3 bg-gray-200 dark:bg-gray-600 rounded-l-xl text-gray-600 dark:text-gray-400 text-sm">/profile/</span>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Адрес профиля 
+                                        <span class="text-xs text-gray-400 font-normal">(уникальный ID)</span>
+                                    </label>
+                                    <div class="flex items-stretch">
+                                        <span class="px-4 py-3 bg-gray-200 dark:bg-gray-600 rounded-l-xl text-gray-600 dark:text-gray-400 text-sm flex items-center">
+                                            /profile.html?id=
+                                        </span>
                                         <input 
                                             :value="user?._id" 
                                             disabled
                                             type="text" 
-                                            class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 rounded-r-xl dark:text-gray-400"
+                                            class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 dark:text-gray-300 text-gray-600 profile-link"
                                         >
+                                        <button 
+                                            @click="copyProfileLink" 
+                                            :class="{'copied': copied}"
+                                            class="copy-btn px-4 py-3 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-r-xl text-gray-600 dark:text-gray-400 transition-colors"
+                                            title="Копировать ссылку"
+                                        >
+                                            <i :class="copied ? 'fas fa-check' : 'fas fa-copy'"></i>
+                                        </button>
                                     </div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Поделитесь этой ссылкой, чтобы другие могли найти ваш профиль
+                                    </p>
                                 </div>
                                 
                                 <div>
@@ -368,7 +399,8 @@ createApp({
             previewAvatar: null,
             showCropModal: false,
             cropImageSrc: null,
-            selectedFile: null
+            selectedFile: null,
+            copied: false
         }
     },
     
@@ -383,6 +415,11 @@ createApp({
                 'notes': 'Заметки'
             };
             return titles[this.activeSection] || 'Настройки';
+        },
+        
+        profileLink() {
+            if (!this.user?._id) return '';
+            return `${window.location.origin}/profile.html?id=${this.user._id}`;
         }
     },
     
@@ -410,6 +447,24 @@ createApp({
             return `${maskedName}@${maskedDomain}.${tld}`;
         },
         
+        async copyProfileLink() {
+            try {
+                await navigator.clipboard.writeText(this.profileLink);
+                this.copied = true;
+                setTimeout(() => this.copied = false, 2000);
+            } catch (err) {
+                // Fallback для старых браузеров
+                const textArea = document.createElement('textarea');
+                textArea.value = this.profileLink;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                this.copied = true;
+                setTimeout(() => this.copied = false, 2000);
+            }
+        },
+        
         triggerFileInput() {
             this.$refs.fileInput.click();
         },
@@ -418,13 +473,11 @@ createApp({
             const file = event.target.files[0];
             if (!file) return;
             
-            // Проверка размера (5MB)
             if (file.size > 5 * 1024 * 1024) {
                 this.uploadError = 'Файл слишком большой (макс. 5MB)';
                 return;
             }
             
-            // Проверка типа
             if (!file.type.startsWith('image/')) {
                 this.uploadError = 'Только изображения';
                 return;
@@ -433,7 +486,6 @@ createApp({
             this.selectedFile = file;
             this.uploadError = '';
             
-            // Показываем превью
             const reader = new FileReader();
             reader.onload = (e) => {
                 this.cropImageSrc = e.target.result;
@@ -467,7 +519,6 @@ createApp({
                         this.previewAvatar = null;
                         this.uploadProgress = 0;
                         
-                        // Обновляем в localStorage если нужно
                         const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
                         savedUser.avatar = response.avatar;
                         localStorage.setItem('user', JSON.stringify(savedUser));

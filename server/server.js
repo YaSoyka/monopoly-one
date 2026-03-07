@@ -30,26 +30,25 @@ const activeGames = new Map();
 app.use(cors());
 app.use(express.json());
 
-// ВАЖНО: правильный путь к статическим файлам
-const publicPath = path.join(__dirname, '..');
+// ВАЖНО: корневая папка проекта - это папка, где лежат server/ и все HTML файлы
+const rootPath = path.join(__dirname, '..');
 console.log('=== SERVER STARTUP ===');
-console.log('Public path:', publicPath);
-console.log('Current directory:', __dirname);
-console.log('Parent directory:', path.join(__dirname, '..'));
+console.log('Root path:', rootPath);
+console.log('Server directory:', __dirname);
 
 // Проверяем существование важных файлов
 const fs = require('fs');
-const indexPath = path.join(publicPath, 'index.html');
+const indexPath = path.join(rootPath, 'index.html');
 console.log('Index.html exists:', fs.existsSync(indexPath));
-console.log('JS folder exists:', fs.existsSync(path.join(publicPath, 'js')));
-console.log('CSS folder exists:', fs.existsSync(path.join(publicPath, 'css')));
+console.log('JS folder exists:', fs.existsSync(path.join(rootPath, 'js')));
+console.log('CSS folder exists:', fs.existsSync(path.join(rootPath, 'css')));
 
-// Раздаем статические файлы из корня проекта
-app.use(express.static(publicPath));
+// Раздаем статические файлы из корня
+app.use(express.static(rootPath));
 
-// Также раздаем статические файлы из папок css и js (на всякий случай)
-app.use('/css', express.static(path.join(publicPath, 'css')));
-app.use('/js', express.static(path.join(publicPath, 'js')));
+// Явно указываем пути для CSS и JS
+app.use('/css', express.static(path.join(rootPath, 'css')));
+app.use('/js', express.static(path.join(rootPath, 'js')));
 
 // Логирование всех запросов
 app.use((req, res, next) => {
@@ -61,12 +60,11 @@ app.use((req, res, next) => {
 const connectDB = async () => {
     try {
         const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/monopoly_one';
-        console.log('Connecting to MongoDB with URI:', mongoURI.replace(/\/\/[^@]+@/, '//***:***@')); // скрываем пароль
+        console.log('Connecting to MongoDB...');
         await mongoose.connect(mongoURI);
         console.log('MongoDB Connected successfully');
     } catch (err) {
         console.error('MongoDB Connection Error:', err.message);
-        console.error('Full error:', err);
     }
 };
 
@@ -784,27 +782,37 @@ setInterval(async () => {
     console.log('Cleaned up old waiting games');
 }, 30 * 60 * 1000);
 
-// Обработка всех остальных маршрутов - отдаем index.html
+// Обработка всех остальных маршрутов - отдаем соответствующие HTML файлы
 app.get('*', (req, res, next) => {
-    // Не обрабатываем API запросы
+    // Не обрабатываем API и socket.io запросы
     if (req.url.startsWith('/api/') || req.url.startsWith('/socket.io/')) {
         return next();
     }
     
-    // Проверяем существование файла
-    const filePath = path.join(publicPath, req.url);
+    // Проверяем, существует ли файл
+    const filePath = path.join(rootPath, req.url);
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
         return res.sendFile(filePath);
     }
     
-    // Отдаем index.html для всех остальных маршрутов
-    res.sendFile(path.join(publicPath, 'index.html'));
+    // Для корневого пути отдаем index.html
+    if (req.url === '/' || req.url === '') {
+        return res.sendFile(path.join(rootPath, 'index.html'));
+    }
+    
+    // Для других путей (friends.html, game.html и т.д.) ищем соответствующий файл
+    const possibleHtmlFile = path.join(rootPath, req.url + '.html');
+    if (fs.existsSync(possibleHtmlFile)) {
+        return res.sendFile(possibleHtmlFile);
+    }
+    
+    // Если ничего не нашли, отдаем index.html
+    res.sendFile(path.join(rootPath, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Public path: ${publicPath}`);
+    console.log(`Root path: ${rootPath}`);
     console.log(`MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Local'}`);
-    console.log(`Server address: http://0.0.0.0:${PORT}`);
 });

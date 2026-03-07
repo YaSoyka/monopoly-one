@@ -31,20 +31,29 @@ app.use(cors());
 app.use(express.json());
 
 // ВАЖНО: правильный путь к статическим файлам
-// HTML файлы лежат в корне проекта
 const publicPath = path.join(__dirname, '..');
+console.log('=== SERVER STARTUP ===');
 console.log('Public path:', publicPath);
+console.log('Current directory:', __dirname);
+console.log('Parent directory:', path.join(__dirname, '..'));
+
+// Проверяем существование важных файлов
+const fs = require('fs');
+const indexPath = path.join(publicPath, 'index.html');
+console.log('Index.html exists:', fs.existsSync(indexPath));
+console.log('JS folder exists:', fs.existsSync(path.join(publicPath, 'js')));
+console.log('CSS folder exists:', fs.existsSync(path.join(publicPath, 'css')));
 
 // Раздаем статические файлы из корня проекта
 app.use(express.static(publicPath));
 
-// Также раздаем статические файлы из папок css и js
+// Также раздаем статические файлы из папок css и js (на всякий случай)
 app.use('/css', express.static(path.join(publicPath, 'css')));
 app.use('/js', express.static(path.join(publicPath, 'js')));
 
 // Логирование всех запросов
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - Body:`, req.body);
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
     next();
 });
 
@@ -52,11 +61,12 @@ app.use((req, res, next) => {
 const connectDB = async () => {
     try {
         const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/monopoly_one';
-        console.log('Connecting to MongoDB...');
+        console.log('Connecting to MongoDB with URI:', mongoURI.replace(/\/\/[^@]+@/, '//***:***@')); // скрываем пароль
         await mongoose.connect(mongoURI);
         console.log('MongoDB Connected successfully');
     } catch (err) {
         console.error('MongoDB Connection Error:', err.message);
+        console.error('Full error:', err);
     }
 };
 
@@ -775,17 +785,26 @@ setInterval(async () => {
 }, 30 * 60 * 1000);
 
 // Обработка всех остальных маршрутов - отдаем index.html
-app.get('*', (req, res) => {
+app.get('*', (req, res, next) => {
     // Не обрабатываем API запросы
     if (req.url.startsWith('/api/') || req.url.startsWith('/socket.io/')) {
         return next();
     }
+    
+    // Проверяем существование файла
+    const filePath = path.join(publicPath, req.url);
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        return res.sendFile(filePath);
+    }
+    
+    // Отдаем index.html для всех остальных маршрутов
     res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Public path: ${publicPath}`);
     console.log(`MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Local'}`);
+    console.log(`Server address: http://0.0.0.0:${PORT}`);
 });

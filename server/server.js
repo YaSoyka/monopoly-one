@@ -6,6 +6,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
@@ -30,23 +31,53 @@ const activeGames = new Map();
 app.use(cors());
 app.use(express.json());
 
-// ВАЖНО: корневая папка проекта - это папка, где лежат server/ и все HTML файлы
+// Создаем папку для загрузок если её нет
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+const fs = require('fs');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Настройка multer для загрузки файлов
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadsDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, 'avatar-' + uniqueSuffix + ext);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Только изображения (JPEG, PNG, GIF, WEBP)'), false);
+    }
+};
+
+const upload = multer({ 
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB max
+    }
+});
+
+// Раздаем статические файлы из корня
 const rootPath = path.join(__dirname, '..');
 console.log('=== SERVER STARTUP ===');
 console.log('Root path:', rootPath);
-console.log('Server directory:', __dirname);
+console.log('Uploads dir:', uploadsDir);
 
-// Проверяем существование важных файлов
-const fs = require('fs');
-const indexPath = path.join(rootPath, 'index.html');
-console.log('Index.html exists:', fs.existsSync(indexPath));
-console.log('JS folder exists:', fs.existsSync(path.join(rootPath, 'js')));
-console.log('CSS folder exists:', fs.existsSync(path.join(rootPath, 'css')));
+// Раздаем uploads как статические файлы
+app.use('/uploads', express.static(uploadsDir));
 
 // Раздаем статические файлы из корня
 app.use(express.static(rootPath));
-
-// Явно указываем пути для CSS и JS
 app.use('/css', express.static(path.join(rootPath, 'css')));
 app.use('/js', express.static(path.join(rootPath, 'js')));
 
@@ -150,6 +181,38 @@ const authMiddleware = (req, res, next) => {
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Загрузка аватара
+app.post('/api/user/avatar', authMiddleware, upload.single('avatar'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const avatarUrl = '/uploads/' + req.file.filename;
+        
+        // Удаляем старый аватар если он не дефолтный
+        const user = await User.findById(req.userId);
+        if (user.avatar && !user.avatar.includes('dicebear') && !user.avatar.includes('default-avatar')) {
+            const oldAvatarPath = path.join(__dirname, '..', user.avatar);
+            if (fs.existsSync(oldAvatarPath)) {
+                fs.unlinkSync(oldAvatarPath);
+            }
+        }
+
+        // Обновляем аватар в БД
+        await User.findByIdAndUpdate(req.userId, { avatar: avatarUrl });
+        
+        res.json({ 
+            success: true, 
+            avatar: avatarUrl,
+            message: 'Avatar updated successfully' 
+        });
+    } catch (err) {
+        console.error('Avatar upload error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // API Роуты - РЕГИСТРАЦИЯ

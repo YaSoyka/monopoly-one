@@ -7,10 +7,19 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
+
+// Cloudinary configuration
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'ddllke0fj',
+    api_key: process.env.CLOUDINARY_API_KEY || '181174798558466',
+    api_secret: process.env.CLOUDINARY_API_SECRET || 'oJst_7ZvCBsaWMqDMIMcri_DRtU'
+});
 
 // CORS настройки для Render
 const io = socketIo(server, {
@@ -31,37 +40,18 @@ const activeGames = new Map();
 app.use(cors());
 app.use(express.json());
 
-// Создаем папку для загрузок если её нет
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-const fs = require('fs');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Настройка multer для загрузки файлов
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadsDir);
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, 'avatar-' + uniqueSuffix + ext);
+// Настройка Cloudinary Storage для multer
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'monopoly-avatars',
+        allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+        transformation: [{ width: 400, height: 400, crop: 'fill' }]
     }
 });
 
-const fileFilter = (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
-        cb(null, true);
-    } else {
-        cb(new Error('Только изображения (JPEG, PNG, GIF, WEBP)'), false);
-    }
-};
-
 const upload = multer({ 
     storage: storage,
-    fileFilter: fileFilter,
     limits: {
         fileSize: 5 * 1024 * 1024 // 5MB max
     }
@@ -71,10 +61,6 @@ const upload = multer({
 const rootPath = path.join(__dirname, '..');
 console.log('=== SERVER STARTUP ===');
 console.log('Root path:', rootPath);
-console.log('Uploads dir:', uploadsDir);
-
-// Раздаем uploads как статические файлы
-app.use('/uploads', express.static(uploadsDir));
 
 // Раздаем статические файлы из корня
 app.use(express.static(rootPath));
@@ -183,24 +169,16 @@ app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Загрузка аватара
+// Загрузка аватара на Cloudinary
 app.post('/api/user/avatar', authMiddleware, upload.single('avatar'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        const avatarUrl = '/uploads/' + req.file.filename;
+        // req.file.path теперь содержит URL от Cloudinary
+        const avatarUrl = req.file.path;
         
-        // Удаляем старый аватар если он не дефолтный
-        const user = await User.findById(req.userId);
-        if (user.avatar && !user.avatar.includes('dicebear') && !user.avatar.includes('default-avatar')) {
-            const oldAvatarPath = path.join(__dirname, '..', user.avatar);
-            if (fs.existsSync(oldAvatarPath)) {
-                fs.unlinkSync(oldAvatarPath);
-            }
-        }
-
         // Обновляем аватар в БД
         await User.findByIdAndUpdate(req.userId, { avatar: avatarUrl });
         
@@ -918,4 +896,5 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Root path: ${rootPath}`);
     console.log(`MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Local'}`);
+    console.log(`Cloudinary: ${process.env.CLOUDINARY_CLOUD_NAME || 'ddllke0fj'}`);
 });

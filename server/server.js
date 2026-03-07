@@ -6,13 +6,18 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const fs = require('fs');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const { Resend } = require('resend');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
+
+// Resend initialization
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Cloudinary configuration
 cloudinary.config({
@@ -35,6 +40,7 @@ const io = socketIo(server, {
 let onlineUsers = 0;
 const connectedSockets = new Map();
 const activeGames = new Map();
+const verificationCodes = new Map(); // Временное хранилище кодов подтверждения
 
 // Middleware
 app.use(cors());
@@ -100,6 +106,7 @@ const UserSchema = new mongoose.Schema({
     games: { type: Number, default: 0 },
     online: { type: Boolean, default: false },
     lastSeen: { type: Date, default: Date.now },
+    emailVerified: { type: Boolean, default: false }, // Новое поле
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     inventory: [{
@@ -164,9 +171,188 @@ const authMiddleware = (req, res, next) => {
     }
 };
 
+// Middleware для проверки верификации email
+const emailVerifiedMiddleware = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        
+        if (!user.emailVerified) {
+            return res.status(403).json({ 
+                error: 'Email not verified',
+                code: 'EMAIL_NOT_VERIFIED',
+                message: 'Подтвердите email для выполнения этого действия'
+            });
+        }
+        next();
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// Генерация 6-значного кода
+const generateVerificationCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Отправка кода подтверждения
+const sendVerificationEmail = async (email, code) => {
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'Monopoly One <onboarding@resend.dev>',
+            to: email,
+            subject: 'Подтверждение email - Monopoly One',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8fafc; border-radius: 10px;">
+                    <h2 style="color: #22c55e; text-align: center;">Monopoly One</h2>
+                    <p style="font-size: 16px; color: #333;">Привет!</p>
+                    <p style="font-size: 16px; color: #333;">Ваш код подтверждения email:</p>
+                    <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; margin: 20px 0;">
+                        <span style="font-size: 32px; font-weight: bold; color: #22c55e; letter-spacing: 5px;">${code}</span>
+                    </div>
+                    <p style="font-size: 14px; color: #666;">Код действителен в течение 10 минут.</p>
+                    <p style="font-size: 14px; color: #666;">Если вы не запрашивали этот код, просто проигнорируйте это письмо.</p>
+                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+                    <p style="font-size: 12px; color: #999; text-align: center;">Monopoly One © 2024</p>
+                </div>
+            `
+        });
+        
+        if (error) {
+            console.error('Resend error:', error);
+            return { success: false, error };
+        }
+        
+        return { success: true, data };
+    } catch (err) {
+        console.error('Send email error:', err);
+        return { success: false, error: err.message };
+    }
+};
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// API Роуты - ВЕРИФИКАЦИЯ EMAIL
+
+// Отправка кода подтверждения
+app.post('/api/auth/send-verification', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        
+        if (user.emailVerified) {
+            return res.status(400).json({ error: 'Email already verified' });
+        }
+        
+        const code = generateVerificationCode();
+        const expiresAt = Date.now() + 10 * 60 * 1000; // 10 минут
+        
+        // Сохраняем код во временном хранилище
+        verificationCodes.set(req.userId, {
+            code,
+            expiresAt,
+            email: user.email
+        });
+        
+        // Отправляем email
+        const result = await sendVerificationEmail(user.email, code);
+        
+        if (!result.success) {
+            return res.status(500).json({ error: 'Failed to send email', details: result.error });
+        }
+        
+        res.json({ success: true, message: 'Verification code sent' });
+    } catch (err) {
+        console.error('Send verification error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Проверка кода и подтверждение email
+app.post('/api/auth/verify-email', authMiddleware, async (req, res) => {
+    try {
+        const { code } = req.body;
+        
+        if (!code || code.length !== 6) {
+            return res.status(400).json({ error: 'Invalid code format' });
+        }
+        
+        const verificationData = verificationCodes.get(req.userId);
+        
+        if (!verificationData) {
+            return res.status(400).json({ error: 'No verification code found. Request new code.' });
+        }
+        
+        if (Date.now() > verificationData.expiresAt) {
+            verificationCodes.delete(req.userId);
+            return res.status(400).json({ error: 'Code expired. Request new code.' });
+        }
+        
+        if (verificationData.code !== code) {
+            return res.status(400).json({ error: 'Invalid code' });
+        }
+        
+        // Подтверждаем email
+        await User.findByIdAndUpdate(req.userId, { emailVerified: true });
+        
+        // Удаляем использованный код
+        verificationCodes.delete(req.userId);
+        
+        res.json({ success: true, message: 'Email verified successfully' });
+    } catch (err) {
+        console.error('Verify email error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Повторная отправка кода
+app.post('/api/auth/resend-code', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        
+        if (user.emailVerified) {
+            return res.status(400).json({ error: 'Email already verified' });
+        }
+        
+        // Удаляем старый код если есть
+        verificationCodes.delete(req.userId);
+        
+        const code = generateVerificationCode();
+        const expiresAt = Date.now() + 10 * 60 * 1000;
+        
+        verificationCodes.set(req.userId, {
+            code,
+            expiresAt,
+            email: user.email
+        });
+        
+        const result = await sendVerificationEmail(user.email, code);
+        
+        if (!result.success) {
+            return res.status(500).json({ error: 'Failed to send email' });
+        }
+        
+        res.json({ success: true, message: 'New verification code sent' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Проверка статуса верификации
+app.get('/api/auth/verification-status', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId).select('emailVerified email');
+        res.json({ 
+            emailVerified: user.emailVerified,
+            email: user.email
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Загрузка аватара на Cloudinary
@@ -176,10 +362,7 @@ app.post('/api/user/avatar', authMiddleware, upload.single('avatar'), async (req
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        // req.file.path теперь содержит URL от Cloudinary
         const avatarUrl = req.file.path;
-        
-        // Обновляем аватар в БД
         await User.findByIdAndUpdate(req.userId, { avatar: avatarUrl });
         
         res.json({ 
@@ -226,7 +409,8 @@ app.post('/api/auth/register', async (req, res) => {
             password: hashedPassword,
             avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${nick}`,
             inventory: starterInventory,
-            vip: true
+            vip: true,
+            emailVerified: false // Email не подтверждён при регистрации
         });
         
         await user.save();
@@ -241,7 +425,8 @@ app.post('/api/auth/register', async (req, res) => {
                 email, 
                 avatar: user.avatar, 
                 vip: true, 
-                level: 1 
+                level: 1,
+                emailVerified: false
             } 
         });
     } catch (err) {
@@ -280,7 +465,8 @@ app.post('/api/auth/login', async (req, res) => {
                 vip: user.vip,
                 level: user.level,
                 wins: user.wins,
-                games: user.games
+                games: user.games,
+                emailVerified: user.emailVerified
             } 
         });
     } catch (err) {
@@ -304,7 +490,7 @@ app.get('/api/user/me', authMiddleware, async (req, res) => {
 app.get('/api/user/:id', authMiddleware, async (req, res) => {
     try {
         const user = await User.findById(req.params.id)
-            .select('nick avatar level xp vip wins games friends inventory')
+            .select('nick avatar level xp vip wins games friends inventory emailVerified')
             .populate('friends', 'nick avatar online lastSeen');
         
         if (!user) return res.status(404).json({ error: 'User not found' });
@@ -444,7 +630,7 @@ app.post('/api/inventory/equip/:itemId', authMiddleware, async (req, res) => {
     }
 });
 
-// Игровые роуты
+// Игровые роуты - ТРЕБУЮТ ВЕРИФИКАЦИИ EMAIL
 app.get('/api/games', async (req, res) => {
     try {
         const games = await Game.find({ status: 'waiting', isPrivate: false })
@@ -458,7 +644,8 @@ app.get('/api/games', async (req, res) => {
     }
 });
 
-app.post('/api/games/create', authMiddleware, async (req, res) => {
+// Создание игры требует верификации email
+app.post('/api/games/create', authMiddleware, emailVerifiedMiddleware, async (req, res) => {
     try {
         const { mode = 'classic', maxPlayers = 6, isPrivate = false, autoStart = true } = req.body;
         
@@ -500,7 +687,8 @@ app.post('/api/games/create', authMiddleware, async (req, res) => {
     }
 });
 
-app.post('/api/games/join/:roomId', authMiddleware, async (req, res) => {
+// Присоединение к игре требует верификации email
+app.post('/api/games/join/:roomId', authMiddleware, emailVerifiedMiddleware, async (req, res) => {
     try {
         const game = await Game.findOne({ roomId: req.params.roomId });
         
@@ -673,6 +861,7 @@ io.on('connection', (socket) => {
         }
     });
     
+    // Отправка сообщения в чат требует верификации email
     socket.on('chatMessage', async ({ text, roomId }) => {
         try {
             let userData = { nick: 'Гость', avatar: '/default-avatar.png', color: '#888' };
@@ -680,7 +869,17 @@ io.on('connection', (socket) => {
             if (socket.handshake.auth.token && socket.handshake.auth.token !== 'guest') {
                 const decoded = jwt.verify(socket.handshake.auth.token, process.env.JWT_SECRET || 'secret');
                 const user = await User.findById(decoded.userId);
+                
                 if (user) {
+                    // Проверяем верификацию email для чата
+                    if (!user.emailVerified) {
+                        socket.emit('error', { 
+                            message: 'Подтвердите email, чтобы писать в чат',
+                            code: 'EMAIL_NOT_VERIFIED'
+                        });
+                        return;
+                    }
+                    
                     userData = { 
                         nick: user.nick, 
                         avatar: user.avatar,
@@ -695,6 +894,13 @@ io.on('connection', (socket) => {
                         text
                     });
                 }
+            } else {
+                // Гости не могут писать в чат
+                socket.emit('error', { 
+                    message: 'Войдите, чтобы писать в чат',
+                    code: 'NOT_AUTHENTICATED'
+                });
+                return;
             }
             
             const message = {
@@ -863,6 +1069,17 @@ setInterval(async () => {
     console.log('Cleaned up old waiting games');
 }, 30 * 60 * 1000);
 
+// Очистка просроченных кодов верификации
+setInterval(() => {
+    const now = Date.now();
+    for (const [userId, data] of verificationCodes.entries()) {
+        if (now > data.expiresAt) {
+            verificationCodes.delete(userId);
+        }
+    }
+    console.log('Cleaned up expired verification codes');
+}, 10 * 60 * 1000); // Каждые 10 минут
+
 // Обработка всех остальных маршрутов - отдаем соответствующие HTML файлы
 app.get('*', (req, res, next) => {
     // Не обрабатываем API и socket.io запросы
@@ -897,4 +1114,5 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`Root path: ${rootPath}`);
     console.log(`MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Local'}`);
     console.log(`Cloudinary: ${process.env.CLOUDINARY_CLOUD_NAME || 'ddllke0fj'}`);
+    console.log(`Resend: ${process.env.RESEND_API_KEY ? 'Enabled' : 'Disabled'}`);
 });

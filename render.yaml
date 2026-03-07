@@ -2,7 +2,7 @@ services:
   - type: web
     name: monopoly-one
     env: node
-    buildCommand: npm install && npm install multer
+    buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -11,3 +11,9 @@ services:
         generateValue: true
       - key: MONGODB_URI
         sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        value: ddllke0fj
+      - key: CLOUDINARY_API_KEY
+        value: 181174798558466
+      - key: CLOUDINARY_API_SECRET
+        value: oJst_7ZvCBsaWMqDMIMcri_DRtU

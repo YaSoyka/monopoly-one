@@ -31,10 +31,16 @@ app.use(cors());
 app.use(express.json());
 
 // ВАЖНО: правильный путь к статическим файлам
-// HTML файлы лежат в корне, рядом с server/
+// HTML файлы лежат в корне проекта
 const publicPath = path.join(__dirname, '..');
 console.log('Public path:', publicPath);
+
+// Раздаем статические файлы из корня проекта
 app.use(express.static(publicPath));
+
+// Также раздаем статические файлы из папок css и js
+app.use('/css', express.static(path.join(publicPath, 'css')));
+app.use('/js', express.static(path.join(publicPath, 'js')));
 
 // Логирование всех запросов
 app.use((req, res, next) => {
@@ -149,6 +155,11 @@ app.post('/api/auth/register', async (req, res) => {
         if (!nick || !email || !password) {
             console.log('Missing fields');
             return res.status(400).json({ error: 'All fields required' });
+        }
+        
+        // Проверка длины пароля
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
         }
         
         const existingUser = await User.findOne({ $or: [{ nick }, { email }] });
@@ -762,6 +773,15 @@ setInterval(async () => {
     });
     console.log('Cleaned up old waiting games');
 }, 30 * 60 * 1000);
+
+// Обработка всех остальных маршрутов - отдаем index.html
+app.get('*', (req, res) => {
+    // Не обрабатываем API запросы
+    if (req.url.startsWith('/api/') || req.url.startsWith('/socket.io/')) {
+        return next();
+    }
+    res.sendFile(path.join(publicPath, 'index.html'));
+});
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

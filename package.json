@@ -17,8 +17,7 @@
     "dotenv": "^16.3.1",
     "multer": "^1.4.5-lts.1",
     "cloudinary": "^1.41.0",
-    "multer-storage-cloudinary": "^4.0.0",
-    "resend": "^2.0.0"
+    "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

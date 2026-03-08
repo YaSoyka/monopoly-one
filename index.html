@@ -99,27 +99,6 @@
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .verification-input {
-            width: 50px;
-            height: 60px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            margin: 0 5px;
-            transition: all 0.2s;
-        }
-        .verification-input:focus {
-            border-color: #22c55e;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-        }
-        .verification-input.dark {
-            background: #374151;
-            border-color: #4b5563;
-            color: white;
-        }
         .shake {
             animation: shake 0.5s;
         }
@@ -171,72 +150,6 @@
                 
                 <div v-if="authError" class="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm text-center">
                     {{ authError }}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Email Verification Modal -->
-    <div v-if="showVerificationModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md shadow-2xl relative">
-            <div class="text-center mb-6">
-                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-2xl">
-                    <i class="fas fa-envelope"></i>
-                </div>
-                <h2 class="text-2xl font-bold mb-2 dark:text-white">Подтвердите email</h2>
-                <p class="text-gray-500 dark:text-gray-400 text-sm">
-                    Мы отправили 6-значный код на <strong class="dark:text-gray-300">{{ user?.email }}</strong>
-                </p>
-            </div>
-            
-            <div class="space-y-4">
-                <!-- Код ввода -->
-                <div class="flex justify-center mb-4">
-                    <input 
-                        v-for="(digit, index) in verificationCode" 
-                        :key="index"
-                        v-model="verificationCode[index]"
-                        type="text"
-                        maxlength="1"
-                        class="verification-input dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        :class="{ 'shake': verificationError }"
-                        @input="onVerificationInput(index, $event)"
-                        @keydown="onVerificationKeydown(index, $event)"
-                        :ref="'codeInput' + index"
-                    >
-                </div>
-                
-                <div v-if="verificationError" class="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm text-center">
-                    {{ verificationError }}
-                </div>
-                
-                <div v-if="verificationSuccess" class="p-3 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg text-sm text-center">
-                    {{ verificationSuccess }}
-                </div>
-                
-                <button 
-                    @click="verifyEmail" 
-                    :disabled="!isCodeComplete || verifying"
-                    class="w-full py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors"
-                >
-                    <i v-if="verifying" class="fas fa-spinner fa-spin mr-2"></i>
-                    {{ verifying ? 'Проверка...' : 'Подтвердить' }}
-                </button>
-                
-                <div class="text-center space-y-2">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                        Не получили код?
-                        <button 
-                            @click="resendCode" 
-                            :disabled="resendTimer > 0"
-                            class="text-blue-500 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
-                        >
-                            {{ resendTimer > 0 ? `Отправить повторно (${resendTimer}с)` : 'Отправить повторно' }}
-                        </button>
-                    </p>
-                    <button @click="logout" class="text-sm text-red-500 hover:underline">
-                        Выйти и войти в другой аккаунт
-                    </button>
                 </div>
             </div>
         </div>
@@ -339,21 +252,8 @@
         </div>
     </div>
 
-    <!-- Email Verification Banner -->
-    <div v-if="isAuthenticated && user && !user.emailVerified && !showVerificationModal" class="fixed top-16 left-0 right-0 z-30 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 shadow-lg">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <i class="fas fa-envelope-open-text text-xl"></i>
-                <span class="text-sm font-medium">Подтвердите email, чтобы создавать игры и писать в чат</span>
-            </div>
-            <button @click="openVerificationModal" class="px-4 py-1.5 bg-white text-blue-600 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors">
-                Подтвердить
-            </button>
-        </div>
-    </div>
-
     <!-- Guest Banner -->
-    <div v-if="!isAuthenticated && !showAuthModal && !showCreateGameModal && !showVerificationModal" class="fixed top-16 left-0 right-0 z-30 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-3 shadow-lg">
+    <div v-if="!isAuthenticated && !showAuthModal && !showCreateGameModal" class="fixed top-16 left-0 right-0 z-30 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-3 shadow-lg">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <i class="fas fa-user-circle text-xl"></i>
@@ -436,7 +336,6 @@
                             <img :src="user.avatar" class="w-8 h-8 rounded-lg object-cover">
                             <span class="hidden sm:block font-medium text-sm dark:text-white">{{ user.nick }}</span>
                             <i v-if="user.vip" class="fas fa-crown text-yellow-400 text-xs" title="VIP"></i>
-                            <i v-if="!user.emailVerified" class="fas fa-exclamation-circle text-orange-400 text-xs" title="Email не подтверждён"></i>
                             <i class="fas fa-chevron-down text-xs text-gray-400"></i>
                         </button>
                         
@@ -444,15 +343,9 @@
                             <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
                                 <p class="font-semibold dark:text-white">{{ user.nick }}</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">Уровень {{ user.level }} <span v-if="user.vip" class="text-yellow-500 ml-1">VIP</span></p>
-                                <p v-if="!user.emailVerified" class="text-xs text-orange-500 mt-1">
-                                    <i class="fas fa-exclamation-circle mr-1"></i>Email не подтверждён
-                                </p>
                             </div>
                             <a href="/profile.html" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm dark:text-gray-200">Профиль</a>
                             <a href="/settings.html" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm dark:text-gray-200">Настройки</a>
-                            <button v-if="!user.emailVerified" @click="openVerificationModal" class="block w-full text-left px-4 py-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm">
-                                <i class="fas fa-envelope mr-2"></i>Подтвердить email
-                            </button>
                             <div class="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
                                 <button @click="logout" class="block w-full text-left px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm">Выйти</button>
                             </div>
@@ -464,7 +357,7 @@
     </header>
 
     <!-- Main Content -->
-    <main class="pt-20 pb-12 min-h-screen" :class="{ 'pt-28': !isAuthenticated || (isAuthenticated && user && !user.emailVerified) }">
+    <main class="pt-20 pb-12 min-h-screen" :class="{ 'pt-28': !isAuthenticated }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
@@ -526,7 +419,7 @@
                 <!-- Right Content -->
                 <div class="lg:col-span-8 space-y-6">
                     <!-- VIP Banner -->
-                    <div v-if="isAuthenticated && user && user.emailVerified" class="rounded-2xl vip-gradient p-6 text-white relative overflow-hidden shadow-lg">
+                    <div v-if="isAuthenticated && user" class="rounded-2xl vip-gradient p-6 text-white relative overflow-hidden shadow-lg">
                         <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
                         <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
                         
@@ -545,31 +438,6 @@
                                     <i class="fas fa-crown text-3xl text-yellow-300"></i>
                                 </div>
                                 <div class="text-xs text-white/80">Бесплатно навсегда</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Email Verification Promo Banner -->
-                    <div v-else-if="isAuthenticated && user && !user.emailVerified" class="rounded-2xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white relative overflow-hidden shadow-lg">
-                        <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-                        
-                        <div class="relative z-10 flex items-center justify-between">
-                            <div>
-                                <div class="flex items-center gap-2 mb-2">
-                                    <i class="fas fa-envelope text-blue-300 text-xl"></i>
-                                    <span class="font-bold text-xl">Подтвердите email</span>
-                                </div>
-                                <p class="text-blue-100 text-sm mb-4 max-w-md">
-                                    Подтвердите свой email, чтобы создавать игры, писать в чат и получить полный доступ ко всем функциям.
-                                </p>
-                                <button @click="openVerificationModal" class="px-4 py-2 bg-white text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors">
-                                    Подтвердить сейчас
-                                </button>
-                            </div>
-                            <div class="hidden sm:block text-center">
-                                <div class="w-20 h-20 mx-auto mb-2 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center border border-white/20">
-                                    <i class="fas fa-envelope-open text-3xl text-blue-300"></i>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -597,11 +465,10 @@
                     </div>
 
                     <!-- Create Game Button -->
-                    <button @click="openCreateGameModal" :disabled="!isAuthenticated || (user && !user.emailVerified)" 
+                    <button @click="openCreateGameModal" :disabled="!isAuthenticated" 
                             class="w-full py-4 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-lg shadow-lg shadow-green-500/30 transition-all hover:scale-[1.01] disabled:hover:scale-100 flex items-center justify-center gap-2">
                         <i class="fas fa-plus"></i>
                         <span v-if="!isAuthenticated">Войдите, чтобы создать игру</span>
-                        <span v-else-if="user && !user.emailVerified">Подтвердите email, чтобы создать игру</span>
                         <span v-else>Создать игру</span>
                     </button>
 
@@ -634,9 +501,6 @@
                         <div class="p-4 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-200 dark:border-gray-700">
                             <div v-if="!isAuthenticated" class="text-center py-2 text-gray-500 dark:text-gray-400 text-sm">
                                 <button @click="openAuthModal" class="text-green-500 hover:underline">Войдите</button>, чтобы писать в чат
-                            </div>
-                            <div v-else-if="user && !user.emailVerified" class="text-center py-2 text-gray-500 dark:text-gray-400 text-sm">
-                                <button @click="openVerificationModal" class="text-blue-500 hover:underline">Подтвердите email</button>, чтобы писать в чат
                             </div>
                             <div v-else class="flex gap-2">
                                 <input v-model="newMessage" @keyup.enter="sendMessage" type="text" placeholder="Написать сообщение..." 
@@ -684,12 +548,9 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Кнопка Присоединиться (для всех, включая владельца) -->
-                                <button v-if="isAuthenticated && user && user.emailVerified" @click="joinGame(game.roomId)" class="px-4 py-2 bg-green-500/10 text-green-600 dark:text-green-400 font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-green-500 hover:text-white">
+                                <!-- Кнопка Присоединиться -->
+                                <button v-if="isAuthenticated" @click="joinGame(game.roomId)" class="px-4 py-2 bg-green-500/10 text-green-600 dark:text-green-400 font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-green-500 hover:text-white">
                                     Присоединиться
-                                </button>
-                                <button v-else-if="isAuthenticated && user && !user.emailVerified" @click="openVerificationModal" class="px-4 py-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-500 hover:text-white">
-                                    Подтвердить email
                                 </button>
                                 <button v-else @click="openAuthModal" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all">
                                     Войти
@@ -698,7 +559,7 @@
                             
                             <div v-if="waitingGames.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
                                 <i class="fas fa-gamepad text-4xl mb-3 text-gray-300 dark:text-gray-600"></i>
-                                <p>Нет активных игр. <span v-if="isAuthenticated && user && user.emailVerified">Создайте свою!</span><span v-else-if="isAuthenticated">Подтвердите email, чтобы создать игру!</span><span v-else>Войдите и создайте свою!</span></p>
+                                <p>Нет активных игр. <span v-if="isAuthenticated">Создайте свою!</span><span v-else>Войдите и создайте свою!</span></p>
                             </div>
                         </div>
                     </div>
@@ -746,7 +607,6 @@ createApp({
             isAuthenticated: false,
             showAuthModal: false,
             showCreateGameModal: false,
-            showVerificationModal: false,
             authMode: 'login',
             authData: { nick: '', email: '', password: '' },
             authError: '',
@@ -775,14 +635,7 @@ createApp({
             searchResults: [],
             searchLoading: false,
             showSearchResults: false,
-            searchTimeout: null,
-            // Email verification
-            verificationCode: ['', '', '', '', '', ''],
-            verificationError: '',
-            verificationSuccess: '',
-            verifying: false,
-            resendTimer: 0,
-            resendInterval: null
+            searchTimeout: null
         }
     },
     
@@ -796,9 +649,6 @@ createApp({
         },
         currentUserId() {
             return this.user?._id || this.user?.id;
-        },
-        isCodeComplete() {
-            return this.verificationCode.every(digit => digit.length === 1);
         }
     },
     
@@ -811,7 +661,6 @@ createApp({
         
         if (this.token) {
             await this.loadUser();
-            this.checkEmailVerification();
         }
         
         this.loadGames();
@@ -829,7 +678,6 @@ createApp({
     beforeUnmount() {
         if (this.taskTimer) clearInterval(this.taskTimer);
         if (this.resetTimer) clearInterval(this.resetTimer);
-        if (this.resendInterval) clearInterval(this.resendInterval);
         if (this.socket) this.socket.disconnect();
         if (this.searchTimeout) clearTimeout(this.searchTimeout);
     },
@@ -868,195 +716,8 @@ createApp({
             });
             
             this.socket.on('error', (err) => {
-                if (err.code === 'EMAIL_NOT_VERIFIED') {
-                    this.openVerificationModal();
-                }
+                console.error('Socket error:', err);
             });
-        },
-        
-        // Email Verification Methods
-        async checkEmailVerification() {
-            if (!this.isAuthenticated || !this.user) return;
-            
-            try {
-                const res = await fetch('/api/auth/verification-status', {
-                    headers: { 'Authorization': 'Bearer ' + this.token }
-                });
-                
-                if (res.ok) {
-                    const data = await res.json();
-                    this.user.emailVerified = data.emailVerified;
-                    
-                    // Если email не подтверждён, показываем модалку при первом входе
-                    if (!data.emailVerified && !localStorage.getItem('verificationSkipped')) {
-                        // Не показываем автоматически, пусть пользователь сам нажмёт
-                    }
-                }
-            } catch (err) {
-                console.error('Check verification error:', err);
-            }
-        },
-        
-        openVerificationModal() {
-            this.showVerificationModal = true;
-            this.verificationCode = ['', '', '', '', '', ''];
-            this.verificationError = '';
-            this.verificationSuccess = '';
-            this.sendVerificationCode();
-            
-            // Фокус на первый инпут
-            this.$nextTick(() => {
-                const firstInput = this.$refs.codeInput0;
-                if (firstInput && firstInput[0]) {
-                    firstInput[0].focus();
-                }
-            });
-        },
-        
-        async sendVerificationCode() {
-            try {
-                const res = await fetch('/api/auth/send-verification', {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + this.token }
-                });
-                
-                if (!res.ok) {
-                    const data = await res.json();
-                    this.verificationError = data.error || 'Ошибка отправки кода';
-                } else {
-                    this.startResendTimer();
-                }
-            } catch (err) {
-                console.error('Send code error:', err);
-                this.verificationError = 'Ошибка соединения';
-            }
-        },
-        
-        startResendTimer() {
-            this.resendTimer = 60;
-            if (this.resendInterval) clearInterval(this.resendInterval);
-            
-            this.resendInterval = setInterval(() => {
-                this.resendTimer--;
-                if (this.resendTimer <= 0) {
-                    clearInterval(this.resendInterval);
-                }
-            }, 1000);
-        },
-        
-        async resendCode() {
-            if (this.resendTimer > 0) return;
-            
-            this.verificationError = '';
-            this.verificationSuccess = '';
-            
-            try {
-                const res = await fetch('/api/auth/resend-code', {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + this.token }
-                });
-                
-                if (res.ok) {
-                    this.verificationSuccess = 'Новый код отправлен!';
-                    this.startResendTimer();
-                    this.verificationCode = ['', '', '', '', '', ''];
-                    
-                    // Фокус на первый инпут
-                    this.$nextTick(() => {
-                        const firstInput = this.$refs.codeInput0;
-                        if (firstInput && firstInput[0]) {
-                            firstInput[0].focus();
-                        }
-                    });
-                } else {
-                    const data = await res.json();
-                    this.verificationError = data.error || 'Ошибка отправки кода';
-                }
-            } catch (err) {
-                this.verificationError = 'Ошибка соединения';
-            }
-        },
-        
-        onVerificationInput(index, event) {
-            const value = event.target.value;
-            
-            // Только цифры
-            if (!/^\d*$/.test(value)) {
-                this.verificationCode[index] = '';
-                return;
-            }
-            
-            this.verificationCode[index] = value.slice(-1);
-            
-            // Автопереход к следующему инпуту
-            if (value && index < 5) {
-                this.$nextTick(() => {
-                    const nextInput = this.$refs['codeInput' + (index + 1)];
-                    if (nextInput && nextInput[0]) {
-                        nextInput[0].focus();
-                    }
-                });
-            }
-        },
-        
-        onVerificationKeydown(index, event) {
-            // Backspace на пустом поле - переход к предыдущему
-            if (event.key === 'Backspace' && !this.verificationCode[index] && index > 0) {
-                this.$nextTick(() => {
-                    const prevInput = this.$refs['codeInput' + (index - 1)];
-                    if (prevInput && prevInput[0]) {
-                        prevInput[0].focus();
-                    }
-                });
-            }
-            
-            // Enter для отправки
-            if (event.key === 'Enter' && this.isCodeComplete) {
-                this.verifyEmail();
-            }
-        },
-        
-        async verifyEmail() {
-            if (!this.isCodeComplete) return;
-            
-            this.verifying = true;
-            this.verificationError = '';
-            this.verificationSuccess = '';
-            
-            const code = this.verificationCode.join('');
-            
-            try {
-                const res = await fetch('/api/auth/verify-email', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + this.token
-                    },
-                    body: JSON.stringify({ code })
-                });
-                
-                if (res.ok) {
-                    this.user.emailVerified = true;
-                    this.verificationSuccess = 'Email успешно подтверждён!';
-                    
-                    setTimeout(() => {
-                        this.showVerificationModal = false;
-                        this.verificationSuccess = '';
-                    }, 1500);
-                } else {
-                    const data = await res.json();
-                    this.verificationError = data.error || 'Неверный код';
-                    
-                    // Анимация ошибки
-                    setTimeout(() => {
-                        this.verificationError = '';
-                    }, 3000);
-                }
-            } catch (err) {
-                this.verificationError = 'Ошибка соединения';
-            } finally {
-                this.verifying = false;
-            }
         },
         
         async searchUsers() {
@@ -1229,11 +890,6 @@ createApp({
                 return;
             }
             
-            if (this.user && !this.user.emailVerified) {
-                this.openVerificationModal();
-                return;
-            }
-            
             this.showCreateGameModal = true;
             this.selectedMode = 'classic';
             this.selectedPlayers = 4;
@@ -1264,12 +920,7 @@ createApp({
                 const data = await res.json();
                 
                 if (data.error) {
-                    if (data.code === 'EMAIL_NOT_VERIFIED') {
-                        this.showCreateGameModal = false;
-                        this.openVerificationModal();
-                    } else {
-                        alert(data.error);
-                    }
+                    alert(data.error);
                     return;
                 }
                 
@@ -1312,10 +963,6 @@ createApp({
                 this.loadGames();
                 this.loadFriends();
                 
-                // Если email не подтверждён, показываем баннер
-                if (!this.user.emailVerified) {
-                    // Баннер появится автоматически
-                }
             } catch (err) {
                 this.authError = 'Ошибка соединения';
             }
@@ -1367,11 +1014,6 @@ createApp({
                 return;
             }
             
-            if (this.user && !this.user.emailVerified) {
-                this.openVerificationModal();
-                return;
-            }
-            
             try {
                 const res = await fetch(`/api/games/join/${roomId}`, {
                     method: 'POST',
@@ -1382,11 +1024,7 @@ createApp({
                     window.location.href = `/game.html?room=${roomId}`;
                 } else {
                     const data = await res.json();
-                    if (data.code === 'EMAIL_NOT_VERIFIED') {
-                        this.openVerificationModal();
-                    } else {
-                        alert(data.error || 'Ошибка присоединения');
-                    }
+                    alert(data.error || 'Ошибка присоединения');
                 }
             } catch (err) {
                 alert('Ошибка присоединения');
@@ -1423,11 +1061,6 @@ createApp({
                 return;
             }
             
-            if (this.user && !this.user.emailVerified) {
-                this.openVerificationModal();
-                return;
-            }
-            
             if (!this.newMessage.trim()) return;
             
             this.socket.emit('chatMessage', { text: this.newMessage, roomId: 'global' });
@@ -1455,7 +1088,6 @@ createApp({
             this.user = null;
             this.token = null;
             this.showMenu = false;
-            this.showVerificationModal = false;
             if (this.socket) {
                 this.socket.auth = { token: 'guest' };
                 this.socket.disconnect().connect();
